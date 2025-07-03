@@ -1,0 +1,424 @@
+/* Dashboard Styles - Override Tailwind */
+.dashboard {
+  padding: 24px !important;
+  background-color: #f8fafc !important;
+  min-height: 100vh !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+.dashboard-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 32px !important;
+}
+
+.dashboard-header h1 {
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  margin: 0 !important;
+}
+
+.period-selector select {
+  padding: 8px 12px !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 6px !important;
+  background: white !important;
+  font-size: 14px !important;
+  color: #374151 !important;
+}
+
+/* Overview Cards */
+.overview-cards {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  gap: 24px !important;
+  margin-bottom: 32px !important;
+}
+
+.dashboard .dashboard-card {
+  background: white !important;
+  border-radius: 12px !important;
+  padding: 24px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  border: 1px solid #e5e7eb !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.dashboard .dashboard-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(to right, #007c7c, #10b981);
+  border-radius: 12px 12px 0 0;
+}
+
+.dashboard .dashboard-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 10px 25px rgba(0, 124, 124, 0.2) !important;
+  border-color: #007c7c !important;
+}
+
+.dashboard .card-title {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #6b7280 !important;
+  margin: 0 0 16px 0 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+}
+
+.dashboard .card-content {
+  color: #1e293b !important;
+}
+
+.dashboard .stat-card .stat-number {
+  font-size: 36px !important;
+  font-weight: 800 !important;
+  color: #007c7c !important;
+  margin-bottom: 8px !important;
+  line-height: 1 !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+}
+
+.dashboard .stat-card .stat-label {
+  font-size: 14px !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}
+
+.dashboard .stat-number.positive {
+  color: #10b981 !important;
+}
+
+.dashboard .stat-number.negative {
+  color: #ef4444 !important;
+}
+
+/* Charts Section */
+.dashboard .charts-section {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 24px !important;
+  margin-bottom: 32px !important;
+}
+
+.dashboard .chart-card {
+  height: 320px !important;
+}
+
+.dashboard .chart-container {
+  width: 100% !important;
+  height: 240px !important;
+  padding: 16px 0 !important;
+}
+
+.dashboard .chart {
+  display: flex !important;
+  align-items: end !important;
+  justify-content: space-between !important;
+  height: 200px !important;
+  padding: 0 16px !important;
+  gap: 8px !important;
+}
+
+.dashboard .chart-bar {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  flex: 1 !important;
+  max-width: 40px !important;
+}
+
+.dashboard .bar {
+  width: 100% !important;
+  border-radius: 6px 6px 0 0 !important;
+  min-height: 8px !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+}
+
+.dashboard .bar.appointments {
+  background: linear-gradient(to top, #3b82f6, #60a5fa) !important;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3) !important;
+}
+
+.dashboard .bar.revenue {
+  background: linear-gradient(to top, #10b981, #34d399) !important;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3) !important;
+}
+
+.dashboard .bar:hover {
+  opacity: 0.8 !important;
+  transform: scaleX(1.1) !important;
+}
+
+.dashboard .chart-label {
+  font-size: 10px !important;
+  color: #6b7280 !important;
+  margin-top: 8px !important;
+  text-align: center !important;
+  font-weight: 500 !important;
+}
+
+/* Analytics Section */
+.dashboard .analytics-section {
+  display: grid !important;
+  grid-template-columns: 2fr 1fr !important;
+  gap: 24px !important;
+  margin-bottom: 32px !important;
+}
+
+.dashboard .analytics-card {
+  max-height: 420px !important;
+  overflow-y: auto !important;
+}
+
+.dashboard .service-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+
+.dashboard .service-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 16px 20px !important;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.dashboard .service-item:hover {
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1) !important;
+  transform: translateX(4px) !important;
+}
+
+.dashboard .service-rank {
+  font-weight: 800 !important;
+  color: #007c7c !important;
+  margin-right: 16px !important;
+  min-width: 32px !important;
+  font-size: 16px !important;
+}
+
+.dashboard .service-name {
+  flex: 1 !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  font-size: 15px !important;
+}
+
+.dashboard .service-count {
+  font-size: 13px !important;
+  color: #6b7280 !important;
+  margin-right: 16px !important;
+  font-weight: 500 !important;
+}
+
+.dashboard .service-revenue {
+  font-weight: 700 !important;
+  color: #10b981 !important;
+  font-size: 16px !important;
+}
+
+/* Pie Chart */
+.dashboard .pie-chart {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  padding: 20px !important;
+}
+
+.dashboard .pie-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 10px 0 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.dashboard .pie-item:last-child {
+  border-bottom: none !important;
+}
+
+.dashboard .pie-color {
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.dashboard .pie-item span {
+  font-size: 14px !important;
+  color: #374151 !important;
+  font-weight: 500 !important;
+}
+
+/* Performance Section */
+.dashboard .performance-section {
+  margin-bottom: 32px !important;
+}
+
+.dashboard .performance-card {
+  min-height: 200px !important;
+}
+
+.dashboard .performance-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+  gap: 16px !important;
+}
+
+.dashboard .performance-item {
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 20px !important;
+  background: linear-gradient(135deg, #f8fafc, #f1f5f9) !important;
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.dashboard .performance-item:hover {
+  background: linear-gradient(135deg, #e2e8f0, #cbd5e1) !important;
+  transform: translateY(-2px) !important;
+}
+
+.dashboard .performance-label {
+  font-size: 13px !important;
+  color: #6b7280 !important;
+  margin-bottom: 8px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.dashboard .performance-value {
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  color: #007c7c !important;
+}
+
+/* Loading States */
+.dashboard-loading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 400px !important;
+  background: white !important;
+  border-radius: 12px !important;
+  margin: 24px !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.spinner {
+  font-size: 18px !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}
+
+/* Error States */
+.dashboard-error {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 400px !important;
+  background: white !important;
+  border-radius: 12px !important;
+  margin: 24px !important;
+  text-align: center !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dashboard-error p {
+  color: #ef4444 !important;
+  font-size: 16px !important;
+  margin-bottom: 16px !important;
+  font-weight: 500 !important;
+}
+
+.retry-btn {
+  padding: 12px 20px !important;
+  background: linear-gradient(135deg, #007c7c, #10b981) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  transition: all 0.2s ease !important;
+}
+
+.retry-btn:hover {
+  background: linear-gradient(135deg, #006666, #0d9488) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 124, 124, 0.3) !important;
+}
+
+/* Enhanced Gradients & Animations */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.dashboard .stat-number {
+  animation: pulse 2s infinite !important;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .dashboard .charts-section {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .dashboard .analytics-section {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 16px !important;
+  }
+  
+  .dashboard .overview-cards {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+    gap: 16px !important;
+  }
+  
+  .dashboard .dashboard-card {
+    padding: 16px !important;
+  }
+  
+  .dashboard .stat-card .stat-number {
+    font-size: 28px !important;
+  }
+  
+  .dashboard .performance-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard .overview-cards {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .dashboard .dashboard-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+}
+

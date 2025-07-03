@@ -1,0 +1,260 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+}
+
+/* Global responsive styles for select dropdowns */
+@media (max-width: 767px) {
+  select {
+    font-size: 14px !important;
+  }
+  
+  select option {
+    font-size: 14px !important;
+    padding: 8px !important;
+  }
+  
+  /* Target React Select components if any */
+  .react-select__control {
+    font-size: 14px !important;
+  }
+  
+  .react-select__option {
+    font-size: 14px !important;
+    padding: 8px !important;
+  }
+  
+  /* Target any custom dropdown components */
+  [role="listbox"] {
+    font-size: 14px !important;
+  }
+  
+  [role="option"] {
+    font-size: 14px !important;
+    padding: 8px !important;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  select {
+    font-size: 15px !important;
+  }
+  
+  select option {
+    font-size: 15px !important;
+    padding: 10px !important;
+  }
+  
+  .react-select__control {
+    font-size: 15px !important;
+  }
+  
+  .react-select__option {
+    font-size: 15px !important;
+    padding: 10px !important;
+  }
+  
+  [role="listbox"] {
+    font-size: 15px !important;
+  }
+  
+  [role="option"] {
+    font-size: 15px !important;
+    padding: 10px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  select {
+    font-size: 16px !important;
+  }
+  
+  select option {
+    font-size: 16px !important;
+    padding: 12px !important;
+  }
+  
+  .react-select__control {
+    font-size: 16px !important;
+  }
+  
+  .react-select__option {
+    font-size: 16px !important;
+    padding: 12px !important;
+  }
+  
+  [role="listbox"] {
+    font-size: 16px !important;
+  }
+  
+  [role="option"] {
+    font-size: 16px !important;
+    padding: 12px !important;
+  }
+}
+
+/* Additional browser-specific dropdown styling */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Custom dropdown class for better control */
+.responsive-select {
+  font-size: 14px;
+}
+
+.responsive-select option {
+  font-size: 14px !important;
+  padding: 8px 12px !important;
+  line-height: 1.4 !important;
+}
+
+@media (min-width: 768px) {
+  .responsive-select {
+    font-size: 15px;
+  }
+  
+  .responsive-select option {
+    font-size: 15px !important;
+    padding: 10px 12px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-select {
+    font-size: 16px;
+  }
+  
+  .responsive-select option {
+    font-size: 16px !important;
+    padding: 12px !important;
+  }
+}
+
+/* Force text size for all form elements on mobile */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: 14px !important;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Prevent zoom on focus for iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    transform: scale(0.875);
+    transform-origin: left top;
+    width: 114.28%;
+  }
+}
+
+@font-face {
+    font-family: 'Roboto';
+    src: url('src/assets/fonts/Roboto-Regular.ttf');
+}
+.Roboto{
+    font-family: 'Roboto', sans-serif;
+}
+
+@font-face {
+    font-family: 'Battambang';
+    src: url('src/assets/fonts/Battambang-Regular.ttf');
+}
+.Battambang{
+    font-family: 'Battambang', sans-serif;
+}
+
+@font-face {
+    font-family: 'Albert-Sans';
+    src: url('src/assets/fonts/AlbertSans-Regular.ttf');
+}
+.Albert-Sans{
+    font-family: 'Albert-Sans', sans-serif;
+}
+
+@font-face {
+  font-family: 'Caveat';
+  src: url('./assets/fonts/Caveat-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Animated gradient background for login */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.login-animated-bg {
+  background: linear-gradient(-45deg, #007c7c, #006666, #005555, #004444, #007a7a, #008080, #005f5f);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+/* Floating elements animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+  }
+}
+
+@keyframes floatReverse {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(20px) rotate(-180deg);
+  }
+}
+
+.floating-element {
+  animation: float 6s ease-in-out infinite;
+}
+
+.floating-element-reverse {
+  animation: floatReverse 8s ease-in-out infinite;
+}
+
+/* Particle effect */
+@keyframes particle {
+  0% {
+    transform: translateY(100vh) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
