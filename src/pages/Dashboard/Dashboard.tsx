@@ -91,7 +91,6 @@ const ModernLineChart: React.FC<{
   const minValue = Math.min(...values, 0);
   const hasVariation = maxValue > minValue;
   
-  const color = type === 'appointments' ? 'bg-blue-500' : 'bg-emerald-500';
   const gradientColor = type === 'appointments' ? 'from-blue-400 to-blue-600' : 'from-emerald-400 to-emerald-600';
   
   if (data.length === 0) {
@@ -112,7 +111,7 @@ const ModernLineChart: React.FC<{
       <div className="md:hidden">
         <div className="overflow-x-auto pb-4">
           <div className="flex items-end h-48 px-2 min-w-[600px]">
-            {data.map((item, index) => {
+            {data.map((item, _index) => {
               const value = item.count || item.revenue || 0;
               const height = hasVariation 
                 ? Math.max(((value - minValue) / (maxValue - minValue)) * 140 + 20, 8)
@@ -152,7 +151,7 @@ const ModernLineChart: React.FC<{
       {/* Desktop: Normal chart */}
       <div className="hidden md:block">
         <div className="flex items-end justify-between h-48 px-2">
-          {data.map((item, index) => {
+          {data.map((item, _index) => {
             const value = item.count || item.revenue || 0;
             const height = hasVariation 
               ? Math.max(((value - minValue) / (maxValue - minValue)) * 140 + 20, 8)
@@ -289,7 +288,6 @@ const AppointmentCalendar: React.FC = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
 
@@ -1060,7 +1058,7 @@ const Dashboard: React.FC = () => {
                   </div>
                   
                   <div className="space-y-3">
-                    {dashboardData.analytics.species_distribution.slice(0, 4).map((species, index) => (
+                    {dashboardData.analytics.species_distribution.slice(0, 4).map((species, _index) => (
                       <div key={species._id} className="flex items-center justify-between">
                         <span className="text-gray-600 text-sm capitalize">{species._id}</span>
                         <div className="flex items-center">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Search from "../../components/Search";
@@ -12,7 +12,6 @@ import {
   faPlus,
   faDownload,
   faClock,
-  faDollarSign,
   faEdit,
   faTrash,
   faShoppingCart,

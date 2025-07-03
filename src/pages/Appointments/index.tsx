@@ -34,7 +34,7 @@ const Appointments: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [pageSize, setPageSize] = useState(15);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, _setCurrentPage] = useState(1);
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -48,12 +48,12 @@ const Appointments: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
+  const [_vaccinations, setVaccinations] = useState<Vaccination[]>([]);
   const [loading, setLoading] = useState(true);
   const [supportingDataLoaded, setSupportingDataLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [totalAppointments, setTotalAppointments] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  const [_totalAppointments, setTotalAppointments] = useState(0);
+  const [_totalPages, setTotalPages] = useState(0);
 
   // Form states
   const [appointmentForm, setAppointmentForm] = useState({
@@ -130,7 +130,7 @@ const Appointments: React.FC = () => {
       // Try to load vaccinations, but don't fail if endpoint doesn't exist
       try {
         const vaccinationsResponse = await vaccinationsApi.getVaccinations();
-        setVaccinations(vaccinationsResponse);
+      setVaccinations(vaccinationsResponse);
       } catch (vaccinationError) {
         console.log('Vaccinations endpoint not available yet');
         setVaccinations([]); // Set empty array as fallback

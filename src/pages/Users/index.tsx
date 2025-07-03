@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Search from "../../components/Search";
 import Layout from "../../layouts/PageLayout";
@@ -13,13 +13,12 @@ import {
   faUserCog,
   faEdit,
   faTrash,
-  faEye,
   faCalendarAlt,
   faEnvelope,
   faPhone,
 } from "@fortawesome/free-solid-svg-icons";
 import { usersApi, User, UserFilters, CreateUserRequest, UpdateUserRequest } from "../../api/users";
-import { TableSkeleton, MobileCardSkeleton, ErrorState, EmptyState, InlineSpinner } from "../../components/ui/loading";
+import { TableSkeleton, MobileCardSkeleton, ErrorState } from "../../components/ui/loading";
 
 const Users = () => {
   const [users, setUsers] = useState<User[]>([]);

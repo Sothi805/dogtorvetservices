@@ -29,15 +29,7 @@ const Customer = () => {
     setIsMenuVisible(!isMenuVisible);
   };
 
-  const getSortDisplayText = (sortBy: string, sortOrder: string) => {
-    const sortLabels = {
-      name: sortOrder === "asc" ? "Name (A-Z)" : "Name (Z-A)",
-      created_at: sortOrder === "asc" ? "Oldest First" : "Latest First",
-      id: sortOrder === "asc" ? "ID (Low-High)" : "ID (High-Low)",
-      status: sortOrder === "asc" ? "Inactive First" : "Active First"
-    };
-    return sortLabels[sortBy as keyof typeof sortLabels] || "Name (A-Z)";
-  };
+
 
   const handleCreateCustomer = () => {
     console.log("🔘 Create Customer button clicked");

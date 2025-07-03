@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faSave, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faPlus } from '@fortawesome/free-solid-svg-icons';
 import { CreateInvoiceItemRequest, UpdateInvoiceItemRequest } from '../../api/invoice-items';
 
 interface InvoiceItemModalProps {
@@ -113,7 +113,7 @@ const InvoiceItemModal: React.FC<InvoiceItemModalProps> = ({
       newErrors.quantity = 'Quantity must be greater than 0';
     }
 
-    if (formData.discount_percent < 0 || formData.discount_percent > 100) {
+    if (formData.discount_percent !== undefined && (formData.discount_percent < 0 || formData.discount_percent > 100)) {
       newErrors.discount_percent = 'Discount must be between 0 and 100';
     }
 

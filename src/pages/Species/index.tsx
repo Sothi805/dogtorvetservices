@@ -96,16 +96,7 @@ const SpeciesManagement = () => {
     }
   };
 
-  const handleDelete = async (species: Species) => {
-    if (!confirm(`Are you sure you want to delete "${species.name}"?`)) return;
 
-    try {
-      await speciesApi.deleteSpecies(species.id);
-      await loadSpecies();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to delete species');
-    }
-  };
 
   const filteredSpecies = species.filter(s => {
     // Backend already filters by status, so we only need to filter by search term

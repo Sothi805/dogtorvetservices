@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faPrint, 
@@ -12,8 +12,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../../layouts/PageLayout';
 import { invoicesApi, Invoice } from '../../api/invoices';
 import { invoiceItemsApi, InvoiceItem, CreateInvoiceItemRequest, UpdateInvoiceItemRequest } from '../../api/invoice-items';
-import { servicesApi, Service } from '../../api/services';
-import { productsApi, Product } from '../../api/products';
+import { servicesApi } from '../../api/services';
+import { productsApi } from '../../api/products';
 import InvoiceItemModal from '../../components/InvoiceItemModal';
 import logoNoBg from '../../assets/logo-no-bg.png';
 

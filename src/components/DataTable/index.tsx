@@ -40,14 +40,12 @@ import {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-  searchKey?: string
   searchPlaceholder?: string
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
-  searchKey = "name",
   searchPlaceholder = "Search...",
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])

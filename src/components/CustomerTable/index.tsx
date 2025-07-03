@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
-import { faPenToSquare, faTrash, faUser, faPhone, faEnvelope, faCheck, faDollarSign } from "@fortawesome/free-solid-svg-icons"
+import { faPenToSquare, faTrash, faCheck, faDollarSign } from "@fortawesome/free-solid-svg-icons"
 import { clientsApi, Client } from "../../api/clients"
 import { invoicesApi } from "../../api/invoices"
 import { CustomerForm } from "../CustomerForm"
@@ -367,7 +367,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({
                   </td>
                 </tr>
               ) : (
-                currentCustomers.map((customer, index) => (
+                currentCustomers.map((customer, _index) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 max-w-[100px] overflow-hidden text-ellipsis">
                       {customer.id}

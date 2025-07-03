@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Search from "../../components/Search";
 import Layout from "../../layouts/PageLayout";
@@ -10,7 +10,6 @@ import {
   faPlus,
   faEdit,
   faTrash,
-  faEye,
 } from "@fortawesome/free-solid-svg-icons";
 import { servicesApi, Service, ServiceFilters, CreateServiceRequest, UpdateServiceRequest } from "../../api/services";
 import { TableSkeleton, MobileCardSkeleton, ErrorState, EmptyState } from "../../components/ui/loading";

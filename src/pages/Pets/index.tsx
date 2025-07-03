@@ -21,7 +21,7 @@ import PetRegistrationModal from "../../components/PetRegistrationModal";
 import { petsApi, Pet, PetFilters } from "../../api/pets";
 import { allergiesApi } from "../../api/allergies";
 import { vaccinationsApi } from "../../api/vaccinations";
-import { TableSkeleton, MobileCardSkeleton, ErrorState, EmptyState, InlineSpinner } from "../../components/ui/loading";
+import { TableSkeleton, MobileCardSkeleton, EmptyState } from "../../components/ui/loading";
 
 // Component implementation uses Pet type from API
 
