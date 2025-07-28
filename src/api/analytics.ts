@@ -27,17 +27,32 @@ export interface PerformanceMetrics {
     total_size_mb: number;
     storage_size_mb: number;
     indexes_size_mb: number;
-    collections: Record<string, {
-      documents: number;
-      size_mb: number;
-      avg_obj_size: number;
-    }>;
+    collections: {
+      [key: string]: {
+        documents: number;
+        size_mb: number;
+        avg_obj_size: number;
+      };
+    };
   };
   activity: {
-    new_clients: number;
-    new_pets: number;
-    new_appointments: number;
-    new_invoices: number;
+    new_clients_24h: number;
+    new_pets_24h: number;
+    new_appointments_24h: number;
+    new_invoices_24h: number;
+    new_clients_7d: number;
+    new_pets_7d: number;
+    new_appointments_7d: number;
+    new_invoices_7d: number;
+  };
+  system_health: {
+    total_documents: number;
+    active_clients: number;
+    active_pets: number;
+    active_users: number;
+    today_appointments: number;
+    upcoming_appointments: number;
+    collection_count: number;
   };
   timestamp: string;
 }

@@ -8,7 +8,7 @@ export interface Appointment {
   veterinarian_id: string;
   appointment_date: string;
   duration_minutes?: number;
-  appointment_status: 'scheduled' | 'completed' | 'cancelled';
+  appointment_status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   notes?: string;
   status?: boolean;
   created_at: string;
@@ -49,7 +49,7 @@ export interface AppointmentFilters {
   pet_id?: string;
   service_id?: string;
   veterinarian_id?: string;
-  appointment_status?: 'scheduled' | 'completed' | 'cancelled';
+  appointment_status?: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   appointment_date_from?: string;
   appointment_date_to?: string;
   search?: string;
@@ -68,7 +68,7 @@ export interface CreateAppointmentRequest {
   veterinarian_id: string;
   appointment_date: string;
   duration_minutes?: number;
-  appointment_status?: 'scheduled' | 'completed' | 'cancelled';
+  appointment_status?: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
   notes?: string;
   status?: boolean;
 }

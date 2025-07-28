@@ -8,8 +8,6 @@ import { useAuth } from '../../context/AuthContext';
 // Shared status configurations
 const APPOINTMENT_STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-500',
-  confirmed: 'bg-green-500', 
-  in_progress: 'bg-yellow-500',
   completed: 'bg-emerald-500',
   cancelled: 'bg-red-500',
   no_show: 'bg-gray-500'
@@ -17,8 +15,6 @@ const APPOINTMENT_STATUS_COLORS: Record<string, string> = {
 
 const APPOINTMENT_STATUS_LABELS: Record<string, string> = {
   scheduled: 'Scheduled',
-  confirmed: 'Confirmed',
-  in_progress: 'In Progress', 
   completed: 'Completed',
   cancelled: 'Cancelled',
   no_show: 'No Show'
@@ -26,8 +22,6 @@ const APPOINTMENT_STATUS_LABELS: Record<string, string> = {
 
 const TODAY_STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-100 text-blue-800',
-  confirmed: 'bg-green-100 text-green-800',
-  in_progress: 'bg-yellow-100 text-yellow-800',
   completed: 'bg-emerald-100 text-emerald-800',
   cancelled: 'bg-red-100 text-red-800',
   no_show: 'bg-gray-100 text-gray-800'
@@ -237,8 +231,8 @@ const ServiceList: React.FC<{
 
 // Modern Calendar Component
 const AppointmentCalendar: React.FC = () => {
-  // Start at June 2025 where appointment data exists, instead of current date
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 5, 1)); // June 2025 (month is 0-indexed)
+  // Start at July 2025 where appointment data actually exists, instead of June 2025
+  const [currentDate, setCurrentDate] = useState(new Date(2025, 6, 1)); // July 2025 (month is 0-indexed)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDateAppointments, setSelectedDateAppointments] = useState<Appointment[]>([]);
@@ -258,21 +252,34 @@ const AppointmentCalendar: React.FC = () => {
       const firstDay = new Date(year, month, 1);
       const lastDay = new Date(year, month + 1, 0);
 
+      // Format dates as YYYY-MM-DD
+      const startDate = firstDay.toISOString().split('T')[0];
+      const endDate = lastDay.toISOString().split('T')[0];
+
+      console.log('📅 Calendar loading appointments for:', {
+        year,
+        month: month + 1,
+        startDate,
+        endDate,
+        firstDay: firstDay.toISOString(),
+        lastDay: lastDay.toISOString()
+      });
+
       const response = await appointmentsApi.getAppointments({
-        appointment_date_from: firstDay.toISOString().split('T')[0],
-        appointment_date_to: lastDay.toISOString().split('T')[0],
+        appointment_date_from: startDate,
+        appointment_date_to: endDate,
         include: 'client,pet,service,user',
         per_page: 100  // Fixed: backend max is 100, not 1000
       });
 
       console.log('📅 Calendar appointments loaded:', {
-        month: `${firstDay.toISOString().split('T')[0]} to ${lastDay.toISOString().split('T')[0]}`,
+        month: `${startDate} to ${endDate}`,
         count: response.data?.length || 0,
         appointments: response.data?.slice(0, 3) || [], // Show first 3 for debugging
-        june5Count: response.data?.filter(apt => 
-          apt.appointment_date && apt.appointment_date.split('T')[0] === '2025-06-05'
+        julyCount: response.data?.filter(apt => 
+          apt.appointment_date && apt.appointment_date.split('T')[0].startsWith('2025-07')
         ).length || 0,
-        note: 'Calendar now starts at June 2025 where appointment data exists! 🎯'
+        note: 'Calendar now starts at July 2025 where appointment data actually exists! 🎯'
       });
 
       setAppointments(response.data || []);
@@ -302,9 +309,21 @@ const AppointmentCalendar: React.FC = () => {
 
   const getAppointmentsForDate = (date: Date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return appointments.filter(apt => 
+    const matchingAppointments = appointments.filter(apt => 
       apt.appointment_date && apt.appointment_date.split('T')[0] === dateStr
     );
+    
+    // Debug logging for July dates where appointments actually exist
+    if (dateStr === '2025-07-28' || dateStr === '2025-07-29' || dateStr === '2025-07-30') {
+      console.log(`🔍 Checking appointments for ${dateStr}:`, {
+        dateStr,
+        totalAppointments: appointments.length,
+        matchingAppointments: matchingAppointments.length,
+        allAppointmentDates: appointments.map(apt => apt.appointment_date?.split('T')[0])
+      });
+    }
+    
+    return matchingAppointments;
   };
 
   const handleDateClick = (date: Date) => {
@@ -355,7 +374,7 @@ const AppointmentCalendar: React.FC = () => {
     
     // Handle case where status might be a boolean or other type
     if (appointment.status === true || appointment.status === 'active') {
-      return 'confirmed';
+      return 'scheduled'; // Changed from 'confirmed' to 'scheduled'
     }
     if (appointment.status === false || appointment.status === 'inactive') {
       return 'cancelled';
@@ -1112,12 +1131,12 @@ const Dashboard: React.FC = () => {
                     
                     <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 md:p-4 rounded-xl border border-green-200">
                       <p className="text-xs text-green-600 font-medium mb-1">New Clients (24h)</p>
-                      <p className="text-lg md:text-2xl font-bold text-green-700">{performanceData.activity.new_clients}</p>
+                      <p className="text-lg md:text-2xl font-bold text-green-700">{performanceData.activity.new_clients_24h}</p>
                     </div>
                     
                     <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 md:p-4 rounded-xl border border-purple-200">
                       <p className="text-xs text-purple-600 font-medium mb-1">New Appointments (24h)</p>
-                      <p className="text-lg md:text-2xl font-bold text-purple-700">{performanceData.activity.new_appointments}</p>
+                      <p className="text-lg md:text-2xl font-bold text-purple-700">{performanceData.activity.new_appointments_24h}</p>
                     </div>
                   </div>
                   
