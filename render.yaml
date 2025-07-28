@@ -17,8 +17,4 @@ services:
         value: nosniff
       - path: /*
         name: X-XSS-Protection
-        value: 1; mode=block
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html 
+        value: 1; mode=block 
