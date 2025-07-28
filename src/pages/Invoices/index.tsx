@@ -14,7 +14,9 @@ import {
   faClock,
   faEdit,
   faTrash,
-  faShoppingCart,
+  faDollarSign,
+  faRotateLeft,
+  faWrench,
 } from "@fortawesome/free-solid-svg-icons";
 import { invoicesApi, Invoice, InvoiceFilters, CreateInvoiceRequest, UpdateInvoiceRequest } from "../../api/invoices";
 import { invoiceItemsApi, InvoiceItem, CreateInvoiceItemRequest, UpdateInvoiceItemRequest } from "../../api/invoice-items";
@@ -37,6 +39,7 @@ const Invoices = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalInvoices, setTotalInvoices] = useState(0);
+  const [showDeleted, setShowDeleted] = useState(false);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,14 +74,37 @@ const Invoices = () => {
         sort_by: 'invoice_date',
         sort_order: sortOrder,
         include_inactive: statusFilter === 'all',
-        payment_status: statusFilter !== 'all' ? statusFilter : undefined,
+        // Remove payment_status since we calculate it dynamically
         include: 'client,pet',
+        include_deleted: showDeleted,
       };
 
       const response = await invoicesApi.getInvoices(filters);
-      setInvoices(response.data);
-      setTotalPages(response.meta.last_page);
-      setTotalInvoices(response.meta.total);
+      
+      console.log('📥 Invoices API response:', response);
+      
+      // Handle paginated response format
+      if (response && (response as any).data && Array.isArray((response as any).data)) {
+        const invoicesData = (response as any).data;
+        console.log('📊 Invoices data:', invoicesData);
+        
+
+        
+        setInvoices(invoicesData);
+        if ((response as any).meta) {
+          setTotalInvoices((response as any).meta.total);
+          setTotalPages((response as any).meta.last_page);
+        } else {
+          setTotalInvoices(invoicesData.length);
+          setTotalPages(1);
+        }
+      } else {
+        console.error('❌ Invalid invoices data format:', response);
+        setError('Invalid data format received from server');
+        setInvoices([]);
+        setTotalInvoices(0);
+        setTotalPages(0);
+      }
     } catch (err) {
       setError('Failed to load invoices');
       console.error('Error loading invoices:', err);
@@ -91,7 +117,7 @@ const Invoices = () => {
     try {
       // Load clients for modal
       const clientsResponse = await clientsApi.getClients();
-      const clientsData = Array.isArray(clientsResponse) ? clientsResponse : clientsResponse.data;
+      const clientsData = Array.isArray(clientsResponse) ? clientsResponse : (clientsResponse as any).data;
       console.log('Clients data:', clientsData); // Debug log
       setClients(clientsData.map((client: any) => ({ 
         id: client.id, 
@@ -99,17 +125,18 @@ const Invoices = () => {
       })));
 
       // Load pets for modal
-      const petsResponse = await petsApi.getPets({ per_page: 100, include: 'client' });  // Backend max limit is 100
-      setPets(petsResponse.data.map(pet => ({ 
+      const petsResponse = await petsApi.getPets({ per_page: 100, include: 'client' });
+      const petsData = petsResponse.data || [];
+      setPets(petsData.map((pet: any) => ({ 
         id: pet.id, 
         name: pet.name, 
         client_id: pet.client_id
       })));
 
       // Load services for invoice items
-      const servicesResponse = await servicesApi.getServices({ per_page: 100 });
-      setServices(servicesResponse.data.map(service => ({
-        id: service.id,
+      const servicesResponse = await servicesApi.getServices({ status: 'active', per_page: 100 });
+      setServices(servicesResponse.map(service => ({
+        id: Number(service.id),
         name: service.name,
         price: Number(service.price),
         description: service.description
@@ -117,7 +144,7 @@ const Invoices = () => {
 
       // Load products for invoice items
       const productsResponse = await productsApi.getProducts({ per_page: 100 });
-      setProducts(productsResponse.data.map(product => ({
+      setProducts((Array.isArray(productsResponse) ? productsResponse : []).map(product => ({
         id: product.id,
         name: product.name,
         price: Number(product.price),
@@ -130,7 +157,7 @@ const Invoices = () => {
 
   useEffect(() => {
     loadInvoices();
-  }, [searchTerm, pageSize, currentPage, sortOrder, statusFilter]);
+  }, [searchTerm, pageSize, currentPage, sortOrder, statusFilter, showDeleted]);
 
   useEffect(() => {
     loadSupportData();
@@ -188,6 +215,20 @@ const Invoices = () => {
     }
   };
 
+  const handleRestoreInvoice = async (invoice: Invoice) => {
+    if (!confirm(`Are you sure you want to restore invoice "${invoice.invoice_number}"?`)) {
+      return;
+    }
+
+    try {
+      await invoicesApi.restoreInvoice(invoice.id.toString());
+      await loadInvoices();
+    } catch (err) {
+      console.error('Error restoring invoice:', err);
+      alert('Failed to restore invoice');
+    }
+  };
+
   const handleMarkAsPaid = async (invoice: Invoice) => {
     try {
       await invoicesApi.markAsPaid(invoice.id.toString());
@@ -195,6 +236,82 @@ const Invoices = () => {
     } catch (err) {
       console.error('Error marking invoice as paid:', err);
       alert('Failed to update invoice status');
+    }
+  };
+
+  const handleRecalculateTotals = async (invoice: Invoice) => {
+    try {
+      console.log(`🔄 Recalculating totals for invoice: ${invoice.id} (${invoice.invoice_number})`);
+      
+      // Import axios instance
+      const { default: axiosInstance } = await import('../../api/axios');
+      
+      // First, debug the invoice to see what's happening
+      console.log('🔍 Debugging invoice before recalculation...');
+      const debugResponse = await axiosInstance.get(`/invoices/${invoice.id}/debug`);
+      console.log('🔍 Debug data:', debugResponse.data);
+      
+      // Call the backend endpoint to recalculate totals
+      const response = await axiosInstance.post(`/invoices/${invoice.id}/recalculate-totals`);
+      
+      console.log('✅ Invoice totals recalculated successfully:', response.data);
+      
+      // Debug again after recalculation
+      console.log('🔍 Debugging invoice after recalculation...');
+      const debugResponseAfter = await axiosInstance.get(`/invoices/${invoice.id}/debug`);
+      console.log('🔍 Debug data after:', debugResponseAfter.data);
+      
+      // Force a complete refresh of the invoices list
+      setCurrentPage(1); // Reset to first page
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Longer delay to ensure backend processing
+      await loadInvoices(); // Refresh the list
+      
+      console.log('🔄 Invoices list refreshed after recalculation');
+    } catch (err) {
+      console.error('Error recalculating invoice totals:', err);
+    }
+  };
+
+  const handleRecalculateAllTotals = async () => {
+    if (!confirm('This will recalculate totals for all invoices. Continue?')) {
+      return;
+    }
+
+    try {
+      const zeroTotalInvoices = filteredInvoices.filter(invoice => Number(invoice.total) === 0);
+      console.log(`🔄 Recalculating totals for ${zeroTotalInvoices.length} invoices with $0.00 total`);
+      
+      for (const invoice of zeroTotalInvoices) {
+        await handleRecalculateTotals(invoice);
+      }
+      
+      alert(`✅ Recalculated totals for ${zeroTotalInvoices.length} invoices`);
+    } catch (err) {
+      console.error('Error recalculating all totals:', err);
+      alert('❌ Failed to recalculate some invoice totals');
+    }
+  };
+
+  const handleFixInvoiceIdFormat = async (invoice: Invoice) => {
+    try {
+      console.log(`🔧 Fixing invoice_id format for invoice: ${invoice.id} (${invoice.invoice_number})`);
+      
+      // Import axios instance
+      const { default: axiosInstance } = await import('../../api/axios');
+      
+      // Call the backend endpoint to fix invoice_id format
+      const response = await axiosInstance.post(`/invoices/${invoice.id}/fix-invoice-id-format`);
+      
+      console.log('✅ Invoice ID format fixed successfully:', response.data);
+      
+      // Force a complete refresh of the invoices list
+      setCurrentPage(1); // Reset to first page
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Longer delay to ensure backend processing
+      await loadInvoices(); // Refresh the list
+      
+      console.log('🔄 Invoices list refreshed after fixing invoice_id format');
+    } catch (err) {
+      console.error('Error fixing invoice_id format:', err);
     }
   };
 
@@ -273,10 +390,42 @@ const Invoices = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const filteredInvoices = invoices.filter(invoice => {
-    if (statusFilter === 'pending') return invoice.payment_status === 'pending';
-    if (statusFilter === 'paid') return invoice.payment_status === 'paid';
-    if (statusFilter === 'overdue') return invoice.payment_status === 'overdue';
+  const calculateInvoiceStatus = (invoice: Invoice): { status: string; color: string } => {
+    // Check if invoice has items by looking at total
+    const hasItems = Number(invoice.total) > 0 || Number(invoice.subtotal) > 0;
+    
+    if (!hasItems) {
+      return { status: 'Empty', color: 'bg-gray-100 text-gray-800' };
+    }
+    
+    const balanceDue = Number(invoice.total) - Number(invoice.deposit || 0);
+    
+    if (balanceDue <= 0) {
+      return { status: 'Paid', color: 'bg-green-100 text-green-800' };
+    } else {
+      return { status: 'Pending', color: 'bg-yellow-100 text-yellow-800' };
+    }
+  };
+
+  const filteredInvoices = (Array.isArray(invoices) ? invoices : []).filter(invoice => {
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesInvoiceNumber = invoice.invoice_number?.toLowerCase().includes(searchLower);
+      const matchesClientName = invoice.client?.name?.toLowerCase().includes(searchLower);
+      const matchesPetName = invoice.pet?.name?.toLowerCase().includes(searchLower);
+      
+      if (!matchesInvoiceNumber && !matchesClientName && !matchesPetName) {
+        return false;
+      }
+    }
+
+    // Apply status filter using new dynamic status
+    const { status } = calculateInvoiceStatus(invoice);
+    if (statusFilter === 'pending') return status === 'Pending';
+    if (statusFilter === 'paid') return status === 'Paid';
+    if (statusFilter === 'overdue') return status === 'Empty'; // Treat empty as overdue for filtering
+    
     return true;
   });
 
@@ -303,16 +452,21 @@ const Invoices = () => {
           <Search 
             value={searchTerm}
             onChange={setSearchTerm}
-            placeholder="Search invoices..."
+              placeholder="Search by invoice number, client name, or pet name..."
           />
+            <p className="text-xs text-gray-500 mt-1">
+              💡 Search by invoice number (e.g., INV-00250724001), client name, or pet name
+            </p>
           </div>
-          <button 
-            onClick={() => handleOpenModal()}
-            className="bg-[#007c7c] hover:bg-[#005f5f] text-white px-4 py-2 rounded-md flex items-center justify-center space-x-2 transition-all duration-200"
-          >
-            <FontAwesomeIcon icon={faPlus} />
-            <span>Create Invoice</span>
-          </button>
+                      <div className="flex space-x-2">
+              <button 
+                onClick={() => handleOpenModal()}
+              className="bg-[#007c7c] hover:bg-[#005f5f] text-white px-4 py-2 rounded-md flex items-center justify-center space-x-2 transition-all duration-200"
+            >
+              <FontAwesomeIcon icon={faPlus} />
+              <span>Create Invoice</span>
+            </button>
+          </div>
         </div>
 
         {/* Mobile/Tablet Filter Controls */}
@@ -328,7 +482,7 @@ const Invoices = () => {
                 <option value="all">All Invoices</option>
                 <option value="pending">Pending</option>
                 <option value="paid">Paid</option>
-                <option value="overdue">Overdue</option>
+                <option value="overdue">Empty</option>
               </select>
             </div>
             <div>
@@ -363,11 +517,38 @@ const Invoices = () => {
                   setSortOrder("desc");
                   setPageSize(15);
                   setSearchTerm("");
+                  setShowDeleted(false);
                 }}
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-md text-sm transition-colors"
               >
                 Reset Filters
+                              </button>
+              </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  const testInvoice = filteredInvoices.find(inv => inv.invoice_number === 'INV-00250724001');
+                  if (testInvoice) {
+                    handleRecalculateTotals(testInvoice);
+                  } else {
+                    alert('Test invoice not found');
+                  }
+                }}
+                className="w-full bg-green-100 hover:bg-green-200 text-green-700 px-3 py-2 rounded-md text-sm transition-colors"
+              >
+                Test Recalc INV-00250724001
               </button>
+            </div>
+            <div className="col-span-2">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={showDeleted}
+                  onChange={(e) => setShowDeleted(e.target.checked)}
+                  className="rounded border-gray-300 text-[#007c7c] focus:ring-[#007c7c]"
+                />
+                <span className="text-sm text-gray-700">Show Deleted Invoices</span>
+              </label>
             </div>
           </div>
         </div>
@@ -428,7 +609,7 @@ const Invoices = () => {
                   statusFilter === "overdue" ? "bg-red-500" : "bg-red-300 hover:bg-red-400"
                 }`}
               >
-                <span>Overdue</span>{" "}
+                <span>Empty</span>{" "}
                 <FontAwesomeIcon icon={faXmark} />
               </button>
             </div>
@@ -459,6 +640,18 @@ const Invoices = () => {
                 <option value={25}>25</option>
               </select>
             </div>
+
+            <div className="space-x-2 flex-shrink-0">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={showDeleted}
+                  onChange={(e) => setShowDeleted(e.target.checked)}
+                  className="rounded border-gray-300 text-[#007c7c] focus:ring-[#007c7c]"
+                />
+                <span className="text-sm">Show Deleted</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -482,9 +675,7 @@ const Invoices = () => {
           <EmptyState
             icon="💳"
             title="No invoices found"
-            message="No invoices match your current search and filter criteria. Try adjusting your filters or create a new invoice."
-            actionText="Create Invoice"
-            onAction={() => handleOpenModal()}
+            message="No invoices match your current search and filter criteria. Try searching by invoice number, client name, or pet name, or adjust your filters."
           />
         ) : (
           <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
@@ -492,17 +683,29 @@ const Invoices = () => {
             <div className="md:hidden p-4">
               <div className="space-y-4">
                 {filteredInvoices.map((invoice) => (
-                  <div key={invoice.id} className="bg-gray-50 rounded-lg p-4 border">
+                  <div key={invoice.id} className={`bg-gray-50 rounded-lg p-4 border ${!invoice.status ? 'opacity-60 bg-red-50 border-red-200' : ''}`}>
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex-1">
-                        <div className="text-lg font-medium text-gray-900">{invoice.invoice_number}</div>
+                        <div className="text-lg font-medium text-gray-900 flex items-center">
+                          {invoice.invoice_number}
+                          {!invoice.status && (
+                            <span className="ml-2 px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                              DELETED
+                            </span>
+                          )}
+                        </div>
                         <div className="text-sm text-gray-500">
                           {invoice.client?.name} {invoice.pet && `• ${invoice.pet.name}`}
                         </div>
                       </div>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(invoice.payment_status)}`}>
-                        {invoice.payment_status.toUpperCase()}
-                      </span>
+                      {(() => {
+                        const { status, color } = calculateInvoiceStatus(invoice);
+                        return (
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
+                            {status.toUpperCase()}
+                          </span>
+                        );
+                      })()}
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -512,19 +715,29 @@ const Invoices = () => {
                       </div>
                       <div>
                         <span className="text-gray-500">Total:</span>
-                        <div className="font-medium">${Number(invoice.total).toFixed(2)}</div>
+                        <div className="font-medium">
+                          <span>${Number(invoice.total).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm mt-2">
+                      <div>
+                        <span className="text-gray-500">Deposit:</span>
+                        <div className="font-medium">
+                          <span>${Number(invoice.deposit || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-gray-500">Balance Due:</span>
+                        <div className="font-medium">
+                          <span>${(Number(invoice.total) - Number(invoice.deposit || 0)).toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
 
                     <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
                       <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleManageItems(invoice)}
-                          className="text-purple-600 hover:text-purple-900 p-2"
-                          title="Add/Edit Items"
-                        >
-                          <FontAwesomeIcon icon={faShoppingCart} />
-                        </button>
                         <button 
                           onClick={() => handleOpenModal(invoice)}
                           className="text-[#007c7c] hover:text-[#005f5f] p-2"
@@ -541,15 +754,19 @@ const Invoices = () => {
                         </button>
                       </div>
                       <div className="flex space-x-2">
-                        {invoice.payment_status === 'pending' && (
+                        {(() => {
+                          const { status } = calculateInvoiceStatus(invoice);
+                          return status === 'Pending';
+                        })() && (
                           <button 
                             onClick={() => handleMarkAsPaid(invoice)}
                             className="text-green-600 hover:text-green-900 p-2"
                             title="Mark as paid"
                           >
-                            <FontAwesomeIcon icon={faCheck} />
+                            <FontAwesomeIcon icon={faDollarSign} />
                           </button>
                         )}
+                        {invoice.status ? (
                         <button 
                           onClick={() => handleDeleteInvoice(invoice)}
                           className="text-red-600 hover:text-red-900 p-2"
@@ -557,6 +774,15 @@ const Invoices = () => {
                         >
                           <FontAwesomeIcon icon={faTrash} />
                         </button>
+                        ) : (
+                          <button 
+                            onClick={() => handleRestoreInvoice(invoice)}
+                            className="text-green-600 hover:text-green-900 p-2"
+                            title="Restore invoice"
+                          >
+                            <FontAwesomeIcon icon={faRotateLeft} />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -585,6 +811,12 @@ const Invoices = () => {
                       Total
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Deposit
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Balance Due
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -594,9 +826,16 @@ const Invoices = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredInvoices.map((invoice) => (
-                    <tr key={invoice.id} className="hover:bg-gray-50">
+                    <tr key={invoice.id} className={`hover:bg-gray-50 ${!invoice.status ? 'bg-red-50' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{invoice.invoice_number}</div>
+                        <div className="text-sm font-medium text-gray-900 flex items-center">
+                          {invoice.invoice_number}
+                          {!invoice.status && (
+                            <span className="ml-2 px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                              DELETED
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{invoice.client?.name || 'Unknown'}</div>
@@ -608,22 +847,32 @@ const Invoices = () => {
                         <div className="text-sm text-gray-900">{formatDate(invoice.invoice_date)}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">${Number(invoice.total).toFixed(2)}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          <span>${Number(invoice.total).toFixed(2)}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(invoice.payment_status)}`}>
-                          {invoice.payment_status.toUpperCase()}
-                        </span>
+                        <div className="text-sm font-medium text-gray-900">
+                          <span>${Number(invoice.deposit || 0).toFixed(2)}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          <span>${(Number(invoice.total) - Number(invoice.deposit || 0)).toFixed(2)}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {(() => {
+                          const { status, color } = calculateInvoiceStatus(invoice);
+                          return (
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${color}`}>
+                              {status.toUpperCase()}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <button 
-                            onClick={() => handleManageItems(invoice)}
-                            className="text-purple-600 hover:text-purple-900"
-                            title="Add/Edit Items"
-                          >
-                            <FontAwesomeIcon icon={faShoppingCart} />
-                          </button>
                           <button 
                             onClick={() => handleOpenModal(invoice)}
                             className="text-[#007c7c] hover:text-[#005f5f]"
@@ -638,15 +887,19 @@ const Invoices = () => {
                           >
                             <FontAwesomeIcon icon={faDownload} />
                           </button>
-                          {invoice.payment_status === 'pending' && (
+                          {(() => {
+                            const { status } = calculateInvoiceStatus(invoice);
+                            return status === 'Pending';
+                          })() && (
                             <button 
                               onClick={() => handleMarkAsPaid(invoice)}
                               className="text-green-600 hover:text-green-900"
                               title="Mark as paid"
                             >
-                              <FontAwesomeIcon icon={faCheck} />
+                              <FontAwesomeIcon icon={faDollarSign} />
                             </button>
                           )}
+                          {invoice.status ? (
                           <button 
                             onClick={() => handleDeleteInvoice(invoice)}
                             className="text-red-600 hover:text-red-900"
@@ -654,6 +907,15 @@ const Invoices = () => {
                           >
                             <FontAwesomeIcon icon={faTrash} />
                           </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleRestoreInvoice(invoice)}
+                              className="text-green-600 hover:text-green-900"
+                              title="Restore invoice"
+                            >
+                              <FontAwesomeIcon icon={faRotateLeft} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -721,11 +983,12 @@ const Invoices = () => {
             setIsModalOpen(false);
             setSelectedInvoice(null);
           }}
-          onSave={handleSaveInvoice}
+          onSuccess={() => {
+            loadInvoices();
+            setIsModalOpen(false);
+            setSelectedInvoice(null);
+          }}
           invoice={selectedInvoice}
-          isLoading={isModalLoading}
-          clients={clients}
-          pets={pets}
         />
 
         {selectedInvoiceId && (

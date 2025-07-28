@@ -1,8 +1,19 @@
 // src/api/axios.ts
 import axios from 'axios';
 
-// Use environment variable with fallback to production API
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://dogtorvet-api.onrender.com/api';
+// Use environment variable with fallback to localhost for development
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.endsWith('/v1') 
+  ? import.meta.env.VITE_API_BASE_URL 
+  : 'http://localhost:8000/api/v1';
+
+// Log the API base URL for debugging
+console.log('API Base URL:', API_BASE_URL);
+console.log('Environment variables:', {
+  VITE_API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
+  MODE: import.meta.env.MODE,
+  DEV: import.meta.env.DEV,
+  PROD: import.meta.env.PROD
+});
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -10,15 +21,20 @@ const axiosInstance = axios.create({
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
-  withCredentials: false, // Set to false for CORS
+  withCredentials: true, // Enable credentials for CORS
+  timeout: 10000, // 10 second timeout
 });
 
 // Request interceptor to add token to headers
 axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
+    console.log('🔐 Request interceptor - Token:', token ? 'Present' : 'Missing');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔐 Added Authorization header');
+    } else {
+      console.log('⚠️ No token found in localStorage');
     }
     return config;
   },
@@ -29,9 +45,61 @@ axiosInstance.interceptors.request.use(
 
 // Response interceptor to handle authentication errors and auto-refresh tokens
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('✅ Response received:', response.status, response.config.url);
+    console.log('🔍 Original response data:', response.data);
+    
+    // Only flatten for non-paginated endpoints
+    const url = response.config.url || '';
+    const isPaginated =
+      url.includes('/appointments/?') || // Only GET appointments (list) is paginated
+      url.includes('/invoices') ||
+      url.includes('/pets') ||
+      url.includes('/users');
+
+    if (response.data && response.data.success !== undefined) {
+      if (!isPaginated) {
+        // Flatten for non-paginated endpoints
+        const modifiedResponse = {
+          ...response,
+          data: response.data.data
+        };
+        console.log('🔍 Modified response data (flattened):', modifiedResponse.data);
+        return modifiedResponse;
+      } else {
+        // For paginated endpoints, extract the data field from APIResponse
+      const modifiedResponse = {
+        ...response,
+        data: response.data.data
+      };
+        console.log('🔍 Paginated endpoint, returning extracted data:', modifiedResponse.data);
+      return modifiedResponse;
+      }
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
+    
+    console.error('❌ API Error:', {
+      status: error.response?.status,
+      message: error.message,
+      url: error.config?.url,
+      data: error.response?.data
+    });
+    
+    // Log CORS and network errors for debugging
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('CORS')) {
+      console.error('Network/CORS Error:', {
+        message: error.message,
+        code: error.code,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL
+        }
+      });
+    }
     
     // Don't redirect to login if we're already on the login page
     const isLoginPage = window.location.pathname === '/login';
@@ -44,25 +112,28 @@ axiosInstance.interceptors.response.use(
       const refreshToken = localStorage.getItem('refreshToken');
       
       if (!refreshToken) {
-        // No refresh token, immediately redirect to login
+        // No refresh token, clear tokens and let AuthContext handle navigation
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
         return Promise.reject(error);
       }
       
       try {
-        // Try to refresh the token
+        // Try to refresh the token - updated for new API structure
         const refreshResponse = await axios.post(
-          `${API_BASE_URL.replace('/api', '')}/api/auth/refresh`, 
+          `${API_BASE_URL}/auth/refresh`,
+          {},
           {
-            refresh_token: refreshToken
+            headers: {
+              'Authorization': `Bearer ${refreshToken}`
+            }
           }
         );
         
-        const data = refreshResponse.data.data || refreshResponse.data;
-        const newToken = data.token || data.access_token;
-        const newRefreshToken = data.refresh_token;
+        // Handle the new APIResponse format
+        const responseData = refreshResponse.data.data || refreshResponse.data;
+        const newToken = responseData.access_token;
+        const newRefreshToken = responseData.refresh_token;
         
         if (newToken) {
           localStorage.setItem('token', newToken);
@@ -73,15 +144,14 @@ axiosInstance.interceptors.response.use(
           return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
-        // Refresh failed, immediately redirect to login
-        console.log('Session expired. Redirecting to login...');
+        // Refresh failed, clear tokens and let AuthContext handle navigation
+        console.log('Session expired. Tokens cleared.');
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
         return Promise.reject(error);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

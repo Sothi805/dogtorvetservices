@@ -1,118 +1,110 @@
-# DogTorVet Frontend
+# DogTorVet Services - Frontend
 
-A modern veterinary clinic management system built with React, TypeScript, and Tailwind CSS.
+A modern veterinary management system built with React, TypeScript, and Tailwind CSS.
 
-## Features
+## 🚀 Production Deployment
 
-- **Client Management**: Register and manage pet owners
-- **Pet Registration**: Complete pet profiles with medical history
-- **Appointment Scheduling**: Book and manage veterinary appointments
-- **Invoice Management**: Create and track invoices with payment status
-- **Inventory Tracking**: Manage products and services
-- **Species & Breeds**: Comprehensive pet categorization
-- **Vaccination Records**: Track pet vaccinations and schedules
-- **User Management**: Role-based access control for staff
+The application is deployed on Render at: **https://dogtorvetservices.onrender.com**
 
-## Tech Stack
+### Environment Configuration
 
-- **Frontend**: React 19 + TypeScript
-- **Styling**: Tailwind CSS
-- **State Management**: React Context API
-- **Routing**: React Router v7
-- **HTTP Client**: Axios
-- **Build Tool**: Vite
-- **Icons**: FontAwesome
+The frontend automatically uses the production API URL when deployed on Render:
+- **Production API**: https://dogtorvet-api.onrender.com/api/v1
+- **Development API**: http://localhost:8000/api/v1
 
-## Prerequisites
+### Build Process
 
-- Node.js 18+ and npm
-- Backend API running (see [DogTorVet API](https://github.com/yourusername/dogtorvet-api))
+The production build automatically:
+- Removes all `console.log` statements
+- Minifies and optimizes the code
+- Generates optimized static files
 
-## Installation
+## 🛠️ Development
 
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/dogtorvet-ui.git
-cd dogtorvet-ui
-```
+### Prerequisites
 
-2. Install dependencies:
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+
 ```bash
 npm install
 ```
 
-3. Create a `.env` file (optional for local development):
-```bash
-# For local development with local API
-VITE_API_BASE_URL=http://localhost:8000/api
+### Development Server
 
-# For production or if using the deployed API
-VITE_API_BASE_URL=https://dogtorvet-api.onrender.com/api
-```
-
-4. Start the development server:
 ```bash
 npm run dev
 ```
 
-## Deployment on Render
+The application will be available at `http://localhost:5173`
 
-This project is configured for easy deployment on Render as a static site.
+### Building for Production
 
-### Automatic Deployment
+```bash
+npm run build
+```
 
-1. Push your code to GitHub
-2. Connect your GitHub repository to Render
-3. Render will automatically detect the `render.yaml` configuration
-4. The app will be built and deployed as a static site
+### Preview Production Build
 
-### Manual Deployment
+```bash
+npm run preview
+```
 
-1. Create a new **Static Site** on Render
-2. Connect your GitHub repository
-3. Configure the build settings:
-   - **Build Command**: `npm install && npm run build`
-   - **Publish Directory**: `dist`
-4. Add environment variables if needed:
-   - `VITE_API_BASE_URL`: Your API URL (defaults to production API)
-5. Deploy!
-
-### Environment Variables
-
-The app uses the following environment variables:
-
-- `VITE_API_BASE_URL`: The base URL for the backend API (optional, defaults to `https://dogtorvet-api.onrender.com/api`)
-
-## Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
-- `npm run lint` - Run ESLint
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
-├── api/          # API service modules
-├── assets/       # Static assets (images, fonts)
-├── components/   # Reusable React components
-├── context/      # React Context providers
-├── layouts/      # Page layouts
-├── pages/        # Route page components
-├── routes/       # Route configuration
-├── types/        # TypeScript type definitions
-└── utils/        # Utility functions
+├── api/           # API client and endpoints
+├── components/    # Reusable UI components
+├── context/       # React context providers
+├── layouts/       # Layout components
+├── pages/         # Page components
+├── routes/        # Routing configuration
+├── types/         # TypeScript type definitions
+└── utils/         # Utility functions
 ```
 
-## Contributing
+## 🎨 Features
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- **Modern UI**: Built with Tailwind CSS and Radix UI
+- **Responsive Design**: Mobile-first approach
+- **Type Safety**: Full TypeScript support
+- **Authentication**: JWT-based auth with refresh tokens
+- **Real-time Updates**: Optimistic UI updates
+- **Print Support**: PDF generation for invoices
+- **Data Management**: CRUD operations for all entities
 
-## License
+## 🔧 Key Technologies
 
-This project is licensed under the MIT License.
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Radix UI** - Accessible components
+- **Axios** - HTTP client
+- **React Router** - Navigation
+- **Vite** - Build tool
+
+## 📱 Supported Browsers
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+## 🔒 Security
+
+- HTTPS enforced in production
+- CORS properly configured
+- JWT token authentication
+- Secure headers configured
+- XSS protection enabled
+
+## 📊 Performance
+
+- Code splitting and lazy loading
+- Optimized bundle size
+- Image optimization
+- Caching strategies
+- CDN delivery on Render

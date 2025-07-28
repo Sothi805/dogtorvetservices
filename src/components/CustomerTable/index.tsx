@@ -37,23 +37,25 @@ const CustomerTable: React.FC<CustomerTableProps> = ({
   const [currentPage, setCurrentPage] = useState(1)
 
   const fetchCustomers = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    
     try {
-      const response = await clientsApi.getClients({ page: 1, per_page: 100 })  // Backend max limit is 100
-      const customersData = Array.isArray(response) ? response : response.data
+      setLoading(true)
+      setError(null)
       
-      // Fetch invoice data for each customer
+      console.log("🔄 Fetching customers...")
+      const customersData = await clientsApi.getClients()
+      console.log("✅ Customers fetched:", customersData)
+      
+      // Fetch invoice data for each customer to calculate spending
       const customersWithSpent = await Promise.all(
         customersData.map(async (customer) => {
           try {
+            // Get invoices for this customer using the correct API structure
             const invoicesResponse = await invoicesApi.getInvoices({
               client_id: customer.id,
               per_page: 100
             })
             
-            const invoices = invoicesResponse.data
+            const invoices = invoicesResponse.data || []
             
             // Calculate total spent (paid invoices)
             const totalSpent = invoices

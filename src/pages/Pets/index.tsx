@@ -12,16 +12,33 @@ import {
   faEdit,
   faTrash,
   faCalendarPlus,
+  faTimes,
+  faFileAlt,
+  faHeartbeat,
+  faCheckCircle,
+  faWeightHanging,
+  faVenusMars,
+  faSyringe,
+  faCalendarAlt,
+  faInfoCircle,
+  faUser,
+  faSave,
+  faSearch,
 } from "@fortawesome/free-solid-svg-icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 //import { User } from 'lucide-react';
 import Search from "../../components/Search";
 import Layout from "../../layouts/PageLayout";
 import PetRegistrationModal from "../../components/PetRegistrationModal";
+import PetProfileModal from "../../components/PetProfileModal";
 import { petsApi, Pet, PetFilters } from "../../api/pets";
-import { allergiesApi } from "../../api/allergies";
-import { vaccinationsApi } from "../../api/vaccinations";
+import { allergiesApi, Allergy } from "../../api/allergies";
+import { vaccinationsApi, Vaccination } from "../../api/vaccinations";
+import { appointmentsApi, Appointment, CreateAppointmentRequest } from "../../api/appointments";
+import { servicesApi, Service } from "../../api/services";
+import { usersApi, User } from "../../api/users";
 import { TableSkeleton, MobileCardSkeleton, EmptyState } from "../../components/ui/loading";
+import "./index.less";
 
 // Component implementation uses Pet type from API
 
@@ -35,10 +52,28 @@ const Pets: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isMedicalModalOpen, setIsMedicalModalOpen] = useState(false);
+  // const [isMedicalModalOpen, setIsMedicalModalOpen] = useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const [detailedPet, setDetailedPet] = useState<Pet | null>(null);
+  const [petAppointments, setPetAppointments] = useState<Appointment[]>([]);
+  const [appointmentFormData, setAppointmentFormData] = useState<CreateAppointmentRequest & { appointment_time: string }>({
+    client_id: '',
+    pet_id: '',
+    service_id: '',
+    veterinarian_id: '',
+    appointment_date: '',
+    appointment_time: '',
+    duration_minutes: 30,
+    appointment_status: 'scheduled',
+    notes: ''
+  });
+  const [services, setServices] = useState<Service[]>([]);
+  const [veterinarians, setVeterinarians] = useState<User[]>([]);
+  const [isCreatingAppointment, setIsCreatingAppointment] = useState(false);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [isLoadingVeterinarians, setIsLoadingVeterinarians] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     gender: 'male' as 'male' | 'female',
@@ -61,6 +96,47 @@ const Pets: React.FC = () => {
     createAppointment: true,
     appointmentTime: '10:00'
   });
+
+  // Medical Records Modal States
+  const [isMedicalModalOpen, setIsMedicalModalOpen] = useState(false);
+  const [medicalPet, setMedicalPet] = useState<Pet | null>(null);
+  const [medicalAllergies, setMedicalAllergies] = useState<any[]>([]);
+  const [medicalVaccinations, setMedicalVaccinations] = useState<any[]>([]);
+  const [medicalHistory, setMedicalHistory] = useState('');
+  const [medicalNewAllergy, setMedicalNewAllergy] = useState({ name: '', description: '' });
+  const [medicalNewVaccination, setMedicalNewVaccination] = useState({ 
+    name: '', 
+    duration_months: 0, 
+    vaccination_date: '', 
+    description: '',
+    createAppointment: true,
+    appointmentTime: '10:00'
+  });
+  const [isMedicalUpdating, setIsMedicalUpdating] = useState(false);
+  const [medicalSuccessMessage, setMedicalSuccessMessage] = useState<string | null>(null);
+  const [medicalActiveTab, setMedicalActiveTab] = useState<'history' | 'allergies' | 'vaccinations'>('history');
+
+  // Available allergy and vaccination types
+  const [availableAllergies, setAvailableAllergies] = useState<Allergy[]>([]);
+  const [availableVaccinations, setAvailableVaccinations] = useState<Vaccination[]>([]);
+  const [isLoadingAllergies, setIsLoadingAllergies] = useState(false);
+  const [isLoadingVaccinations, setIsLoadingVaccinations] = useState(false);
+  
+  // Search states for medical records
+  const [allergySearchTerm, setAllergySearchTerm] = useState('');
+  const [vaccinationSearchTerm, setVaccinationSearchTerm] = useState('');
+
+  // Filtered data for search
+  const filteredAllergies = availableAllergies.filter(allergy =>
+    (allergy.name.toLowerCase().includes(allergySearchTerm.toLowerCase()) ||
+    (allergy.description && allergy.description.toLowerCase().includes(allergySearchTerm.toLowerCase()))) &&
+    !medicalAllergies.some(existingAllergy => existingAllergy.id === allergy.id)
+  );
+
+  const filteredVaccinations = availableVaccinations.filter(vaccination =>
+    vaccination.name.toLowerCase().includes(vaccinationSearchTerm.toLowerCase()) ||
+    (vaccination.description && vaccination.description.toLowerCase().includes(vaccinationSearchTerm.toLowerCase()))
+  );
 
   // Data states
   const [pets, setPets] = useState<Pet[]>([]);
@@ -101,10 +177,27 @@ const Pets: React.FC = () => {
       };
 
       const response = await petsApi.getPets(filters);
-      setPets(response.data);
-      setTotalPets(response.meta.total);
-      setTotalPages(response.meta.last_page);
+      console.log('🔥 PETS RESPONSE:', response);
+      
+      // Handle paginated response format
+      if (response && response.data && Array.isArray(response.data)) {
+        setPets(response.data);
+      if (response.meta) {
+        setTotalPets(response.meta.total);
+        setTotalPages(response.meta.last_page);
+      } else {
+          setTotalPets(response.data.length);
+          setTotalPages(1);
+        }
+      } else {
+        console.error('❌ Invalid pets data format:', response);
+        setError('Invalid data format received from server');
+        setPets([]);
+        setTotalPets(0);
+        setTotalPages(0);
+      }
     } catch (err: any) {
+      console.log('🚨 PETS ERROR:', err);
       const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || 'Failed to load pets';
       setError(`Failed to load pets: ${errorMessage} (Status: ${err.response?.status || 'Unknown'})`);
       console.error('Error loading pets:', err);
@@ -139,14 +232,120 @@ const Pets: React.FC = () => {
     setIsProfileModalOpen(true);
   };
 
-  const handleViewMedical = (pet: Pet) => {
-    setSelectedPetId(pet.id);
-    setIsMedicalModalOpen(true);
-  };
+  // const handleViewMedical = async (pet: Pet) => {
+  //   setSelectedPetId(pet.id);
+  //   setIsMedicalModalOpen(true);
+  //   
+  //   // Load detailed pet data with allergies and vaccinations
+  //   try {
+  //     const detailedPetData = await petsApi.getPet(pet.id, 'client,species,breed,allergies,vaccinations');
+  //     setDetailedPet(detailedPetData);
+  //   } catch (err: any) {
+  //     console.error('❌ Failed to load detailed pet data:', err);
+  //     // Fallback to basic pet data
+  //     setDetailedPet(pet);
+  //   }
+  // };
 
-  const handleScheduleAppointment = (pet: Pet) => {
+  const handleScheduleAppointment = async (pet: Pet) => {
     setSelectedPetId(pet.id);
     setIsScheduleModalOpen(true);
+    
+    // Load detailed pet data with allergies and vaccinations
+    try {
+      console.log('🔍 Loading detailed pet data for schedule appointment:', pet.id);
+      const detailedPetData = await petsApi.getPet(pet.id, 'client,species,breed,allergies,vaccinations');
+      console.log('📊 Detailed pet data loaded:', detailedPetData);
+      // Update the pets array with detailed data so selectedPet will have the updated data
+      setPets(prevPets => prevPets.map(p => p.id === pet.id ? detailedPetData : p));
+    } catch (err: any) {
+      console.error('❌ Failed to load detailed pet data:', err);
+      // Keep the original pet data
+    }
+    
+    // Load pet's appointments
+    try {
+      console.log('🔍 Loading appointments for pet:', pet.id);
+      const appointmentsResponse = await appointmentsApi.getAppointments({
+        pet_id: pet.id,
+        include: 'client,pet,service,user',
+        per_page: 50,
+        sort_by: 'appointment_date',
+        sort_order: 'desc'
+      });
+      console.log('📊 Appointments loaded:', appointmentsResponse.data);
+      setPetAppointments(appointmentsResponse.data);
+    } catch (err: any) {
+      console.error('❌ Failed to load pet appointments:', err);
+      setPetAppointments([]);
+    }
+    
+    // Load services and veterinarians
+    try {
+      setIsLoadingServices(true);
+      setIsLoadingVeterinarians(true);
+      
+      console.log('🔍 Loading services...');
+      const servicesResponse = await servicesApi.getServices({
+        status: 'active',
+        per_page: 100,
+        sort_by: 'name',
+        sort_order: 'asc'
+      });
+      console.log('📊 Services loaded:', servicesResponse);
+      setServices(servicesResponse);
+      
+      console.log('🔍 Loading veterinarians...');
+      const veterinariansResponse = await usersApi.getUsers();
+      const veterinariansData = veterinariansResponse.data || [];
+      console.log('📊 Veterinarians loaded:', veterinariansData);
+      setVeterinarians(veterinariansData);
+      
+      // Set default veterinarian to admin@dogtorvet.com
+      let defaultVetId = '';
+      const adminUser = veterinariansData.find(vet => vet.email === 'admin@dogtorvet.com');
+      if (adminUser) {
+        defaultVetId = adminUser.id;
+        console.log('🏥 Set default veterinarian to admin:', adminUser.name);
+      } else if (veterinariansData && veterinariansData.length > 0) {
+        // Fallback to first veterinarian if admin not found
+        defaultVetId = veterinariansData[0].id;
+        console.log('🏥 Set default veterinarian to first available:', veterinariansData[0].name);
+      }
+      
+      // Set initial form data with default veterinarian
+      setAppointmentFormData({
+        client_id: pet.client_id || '',
+        pet_id: pet.id,
+        service_id: '',
+        veterinarian_id: defaultVetId,
+        appointment_date: new Date().toISOString().split('T')[0], // Set today as default
+        appointment_time: '10:00', // Set default time
+        duration_minutes: 30,
+        appointment_status: 'scheduled',
+        notes: ''
+      });
+    } catch (err: any) {
+      console.error('❌ Failed to load services/veterinarians:', err);
+      setServices([]);
+      setVeterinarians([]);
+      
+      // Set initial form data without default veterinarian
+      setAppointmentFormData({
+        client_id: pet.client_id || '',
+        pet_id: pet.id,
+        service_id: '',
+        veterinarian_id: '',
+        appointment_date: new Date().toISOString().split('T')[0],
+        appointment_time: '10:00', // Set default time
+        duration_minutes: 30,
+        appointment_status: 'scheduled',
+        notes: ''
+      });
+    } finally {
+      setIsLoadingServices(false);
+      setIsLoadingVeterinarians(false);
+    }
   };
 
   const handleEditPet = (pet: Pet) => {
@@ -414,9 +613,298 @@ const Pets: React.FC = () => {
     }
   };
 
+  const handleAppointmentFormChange = (field: string, value: string | number) => {
+    setAppointmentFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleCreateAppointment = async () => {
+    console.log('🔍 Creating appointment with data:', appointmentFormData);
+    if (!appointmentFormData.service_id || !appointmentFormData.veterinarian_id || !appointmentFormData.appointment_date || !appointmentFormData.appointment_time) {
+      alert('Please fill in all required fields (Service, Veterinarian, Date, and Time)');
+      return;
+    }
+
+    setIsCreatingAppointment(true);
+    try {
+      // Combine date and time for the API
+      const appointmentDateTime = `${appointmentFormData.appointment_date} ${appointmentFormData.appointment_time}:00`;
+      const appointmentData = {
+        client_id: appointmentFormData.client_id,
+        pet_id: appointmentFormData.pet_id,
+        service_id: appointmentFormData.service_id,
+        veterinarian_id: appointmentFormData.veterinarian_id,
+        appointment_date: appointmentDateTime,
+        duration_minutes: appointmentFormData.duration_minutes,
+        appointment_status: appointmentFormData.appointment_status,
+        notes: appointmentFormData.notes
+      };
+      
+      const newAppointment = await appointmentsApi.createAppointment(appointmentData);
+      console.log('✅ Appointment created:', newAppointment);
+      
+      // Reload appointments
+      const appointmentsResponse = await appointmentsApi.getAppointments({
+        pet_id: appointmentFormData.pet_id,
+        include: 'client,pet,service,user',
+        per_page: 50,
+        sort_by: 'appointment_date',
+        sort_order: 'desc'
+      });
+      setPetAppointments(appointmentsResponse.data);
+      
+      // Reset form but keep the veterinarian
+      setAppointmentFormData({
+        client_id: appointmentFormData.client_id,
+        pet_id: appointmentFormData.pet_id,
+        service_id: '',
+        veterinarian_id: appointmentFormData.veterinarian_id, // Keep the selected veterinarian
+        appointment_date: new Date().toISOString().split('T')[0], // Set today as default
+        appointment_time: '10:00', // Set default time
+        duration_minutes: 30,
+        appointment_status: 'scheduled',
+        notes: ''
+      });
+      
+      // Show success message
+      console.log('✅ Appointment scheduled successfully!');
+      
+    } catch (err: any) {
+      console.error('❌ Failed to create appointment:', err);
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || 'Failed to schedule appointment. Please try again.';
+      alert(`Failed to schedule appointment: ${errorMessage}`);
+    } finally {
+      setIsCreatingAppointment(false);
+    }
+  };
+
 
 
   const selectedPet = pets.find(p => p.id === selectedPetId);
+
+  // Medical Records Modal Functions
+  const handleViewMedical = async (pet: Pet) => {
+    try {
+      console.log('🩺 Opening medical records for pet:', pet.name);
+      
+      // Load available allergy and vaccination types
+      setIsLoadingAllergies(true);
+      setIsLoadingVaccinations(true);
+      
+      try {
+        const [allergiesResponse, vaccinationsResponse] = await Promise.all([
+          allergiesApi.getAllergies('active'),
+          vaccinationsApi.getVaccinations('active')
+        ]);
+        
+        setAvailableAllergies(allergiesResponse);
+        setAvailableVaccinations(vaccinationsResponse);
+        console.log('📋 Available allergies:', allergiesResponse);
+        console.log('💉 Available vaccinations:', vaccinationsResponse);
+      } catch (error: any) {
+        console.error('❌ Failed to load allergy/vaccination types:', error);
+        // Continue anyway, user can still see existing data
+      } finally {
+        setIsLoadingAllergies(false);
+        setIsLoadingVaccinations(false);
+      }
+      
+      // Fetch detailed pet data including allergies and vaccinations
+      const detailedPetData = await petsApi.getPet(pet.id, 'client,species,breed,allergies,vaccinations');
+      console.log('📋 Detailed pet data:', detailedPetData);
+      
+      setMedicalPet(detailedPetData);
+      setMedicalAllergies(detailedPetData.allergies || []);
+      setMedicalVaccinations(detailedPetData.vaccinations || []);
+      setMedicalHistory(detailedPetData.medical_history || '');
+      setMedicalNewAllergy({ name: '', description: '' });
+      setMedicalNewVaccination({ 
+        name: '', 
+        duration_months: 0, 
+        vaccination_date: '', 
+        description: '',
+        createAppointment: true,
+        appointmentTime: '10:00'
+      });
+      setIsMedicalModalOpen(true);
+    } catch (error: any) {
+      console.error('❌ Failed to load medical records:', error);
+      alert('Failed to load medical records. Please try again.');
+    }
+  };
+
+  const handleMedicalAddAllergy = () => {
+    if (!medicalNewAllergy.name.trim()) {
+      alert('Please select an allergy type');
+      return;
+    }
+    
+    // Find the selected allergy from available allergies
+    const selectedAllergy = availableAllergies.find(a => a.id === medicalNewAllergy.name);
+    if (!selectedAllergy) {
+      alert('Please select a valid allergy type');
+      return;
+    }
+    
+    const newAllergyItem = {
+      id: selectedAllergy.id,
+      name: selectedAllergy.name,
+      description: selectedAllergy.description,
+      isNew: true
+    };
+    
+    setMedicalAllergies(prev => [...prev, newAllergyItem]);
+    setMedicalNewAllergy({ name: '', description: '' });
+  };
+
+  const handleMedicalRemoveAllergy = (allergyId: string) => {
+    if (confirm('Are you sure you want to remove this allergy?')) {
+      setMedicalAllergies(prev => prev.filter(allergy => allergy.id !== allergyId));
+    }
+  };
+
+  const handleMedicalAddVaccination = () => {
+    if (!medicalNewVaccination.name.trim() || !medicalNewVaccination.vaccination_date) {
+      alert('Please select a vaccination type and date');
+      return;
+    }
+    
+    // Find the selected vaccination from available vaccinations
+    const selectedVaccination = availableVaccinations.find(v => v.id === medicalNewVaccination.name);
+    if (!selectedVaccination) {
+      alert('Please select a valid vaccination type');
+      return;
+    }
+    
+    const newVaccinationItem = {
+      id: selectedVaccination.id,
+      name: selectedVaccination.name,
+      duration_months: selectedVaccination.duration_months,
+      description: selectedVaccination.description,
+      pivot: {
+        vaccination_date: medicalNewVaccination.vaccination_date,
+        next_due_date: calculateNextDueDate(medicalNewVaccination.vaccination_date, selectedVaccination.duration_months)
+      },
+      createAppointment: medicalNewVaccination.createAppointment,
+      appointmentTime: medicalNewVaccination.appointmentTime,
+      isNew: true
+    };
+    
+    setMedicalVaccinations(prev => [...prev, newVaccinationItem]);
+    setMedicalNewVaccination({ 
+      name: '', 
+      duration_months: 0, 
+      vaccination_date: '', 
+      description: '',
+      createAppointment: true,
+      appointmentTime: '10:00'
+    });
+  };
+
+  const handleMedicalRemoveVaccination = (vaccinationId: string) => {
+    if (confirm('Are you sure you want to remove this vaccination record?')) {
+      setMedicalVaccinations(prev => prev.filter(vaccination => vaccination.id !== vaccinationId));
+    }
+  };
+
+  const handleMedicalSaveChanges = async () => {
+    if (!medicalPet) return;
+    
+    setIsMedicalUpdating(true);
+    setMedicalSuccessMessage(null);
+    try {
+      console.log('💾 Saving medical records for pet:', medicalPet.name);
+      
+      // Save medical history if changed
+      if (medicalHistory !== medicalPet.medical_history) {
+        try {
+          await petsApi.updatePet(medicalPet.id, { medical_history: medicalHistory });
+          console.log('✅ Medical history updated');
+        } catch (error: any) {
+          console.error('❌ Failed to update medical history:', error);
+          setMedicalSuccessMessage('Failed to update medical history');
+          return;
+        }
+      }
+      
+      // Save allergies
+      const newAllergies = medicalAllergies.filter(a => a.isNew);
+      for (const allergy of newAllergies) {
+        try {
+          await petsApi.addAllergy(medicalPet.id, allergy.id);
+          console.log('✅ Allergy added:', allergy.name);
+        } catch (error: any) {
+          console.error('❌ Failed to add allergy:', error);
+          setMedicalSuccessMessage(`Failed to add allergy: ${allergy.name}`);
+          return;
+        }
+      }
+      
+      // Save vaccinations
+      const newVaccinations = medicalVaccinations.filter(v => v.isNew);
+      let appointmentsCreated = 0;
+      
+      for (const vaccination of newVaccinations) {
+        try {
+          await petsApi.addVaccination(medicalPet.id, {
+            vaccination_id: vaccination.id,
+            vaccination_date: vaccination.pivot.vaccination_date,
+            next_due_date: vaccination.pivot.next_due_date,
+            notes: vaccination.description,
+            create_next_appointment: vaccination.createAppointment,
+            appointment_time: vaccination.appointmentTime
+          });
+          console.log('✅ Vaccination added:', vaccination.name);
+          appointmentsCreated++;
+        } catch (error: any) {
+          console.error('❌ Failed to add vaccination:', error);
+          setMedicalSuccessMessage(`Failed to add vaccination: ${vaccination.name}`);
+          return;
+        }
+      }
+      
+      // Show success message
+      const newAllergiesCount = newAllergies.length;
+      const newVaccinationsCount = newVaccinations.length;
+      const historyUpdated = medicalHistory !== medicalPet.medical_history;
+      
+      let successMessage = `Medical records updated successfully!`;
+      if (historyUpdated) {
+        successMessage += ` Medical history updated.`;
+      }
+      if (newAllergiesCount > 0) {
+        successMessage += ` ${newAllergiesCount} allergy(ies) added.`;
+      }
+      if (newVaccinationsCount > 0) {
+        successMessage += ` ${newVaccinationsCount} vaccination(s) added.`;
+      }
+      if (appointmentsCreated > 0) {
+        successMessage += ` ${appointmentsCreated} appointment(s) scheduled.`;
+      }
+      
+      setMedicalSuccessMessage(successMessage);
+      
+      // Auto-close modal after 2 seconds
+      setTimeout(() => {
+        setIsMedicalModalOpen(false);
+        setMedicalSuccessMessage(null);
+        loadPets(); // Refresh the pets list
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('❌ Failed to save medical records:', error);
+      setMedicalSuccessMessage('Failed to save medical records. Please try again.');
+    } finally {
+      setIsMedicalUpdating(false);
+    }
+  };
+
+  const setMedicalTodayDate = () => {
+    const today = new Date().toISOString().split('T')[0];
+    setMedicalNewVaccination(prev => ({ ...prev, vaccination_date: today }));
+  };
 
   return (
     <Layout title="Pets">
@@ -627,6 +1115,8 @@ const Pets: React.FC = () => {
           </>
         ) : (
           <>
+            {/* Debug log for pets array */}
+            {console.log('Current pets in table:', pets)}
             {/* Mobile/Tablet Card View */}
             <div className="lg:hidden space-y-4">
               {pets.length === 0 ? (
@@ -693,7 +1183,9 @@ const Pets: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-col gap-2">
+                        {/* Top row - 3 buttons */}
+                        <div className="flex gap-2">
                         <button 
                           onClick={() => handleViewProfile(pet)}
                           className="flex-1 bg-blue-50 text-blue-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-100 transition-colors"
@@ -703,7 +1195,7 @@ const Pets: React.FC = () => {
                         </button>
                         <button 
                           onClick={() => handleViewMedical(pet)}
-                          className="flex-1 bg-blue-50 text-blue-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-100 transition-colors"
+                          className="flex-1 bg-purple-50 text-purple-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-purple-100 transition-colors"
                         >
                           <FontAwesomeIcon icon={faStethoscope} className="mr-1" />
                           Medical
@@ -715,27 +1207,35 @@ const Pets: React.FC = () => {
                           <FontAwesomeIcon icon={faCalendarPlus} className="mr-1" />
                           Schedule
                         </button>
+                        </div>
+                        
+                        {/* Bottom row - 2 buttons */}
+                        <div className="flex gap-2">
                         <button 
                           onClick={() => handleEditPet(pet)}
-                          className="bg-orange-50 text-orange-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-orange-100 transition-colors"
+                            className="flex-1 bg-orange-50 text-orange-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-orange-100 transition-colors"
                         >
-                          <FontAwesomeIcon icon={faEdit} />
+                            <FontAwesomeIcon icon={faEdit} className="mr-1" />
+                            Edit
                         </button>
                         {pet.status ? (
                           <button 
                             onClick={() => handleTogglePetStatus(pet.id, pet.status)}
-                            className="bg-red-50 text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-100 transition-colors"
+                              className="flex-1 bg-red-50 text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-100 transition-colors"
                           >
-                            <FontAwesomeIcon icon={faTrash} />
+                              <FontAwesomeIcon icon={faTrash} className="mr-1" />
+                              Deactivate
                           </button>
                         ) : (
                           <button 
                             onClick={() => handleTogglePetStatus(pet.id, pet.status)}
-                            className="bg-green-50 text-green-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-green-100 transition-colors"
+                              className="flex-1 bg-green-50 text-green-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-green-100 transition-colors"
                           >
-                            <FontAwesomeIcon icon={faCheck} />
+                              <FontAwesomeIcon icon={faCheck} className="mr-1" />
+                              Activate
                           </button>
                         )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -825,7 +1325,7 @@ const Pets: React.FC = () => {
                               </button>
                               <button 
                                 onClick={() => handleViewMedical(pet)}
-                                className="text-blue-600 hover:text-blue-900 mr-3" 
+                                className="text-purple-600 hover:text-purple-800 mr-3" 
                                 title="Medical Records"
                               >
                                 <FontAwesomeIcon icon={faStethoscope} />
@@ -922,598 +1422,895 @@ const Pets: React.FC = () => {
           </>
         )}
 
-        {/* Pet Profile Modal */}
-        {isProfileModalOpen && selectedPet && (
-          <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto !bg-white !border-gray-200 !text-gray-900">
-              <DialogHeader className="!bg-white">
-                <DialogTitle className="flex items-center gap-2 !text-gray-900">
-                  <span className="text-2xl">🐾</span>
-                  Pet Profile
-                </DialogTitle>
-              </DialogHeader>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 !bg-white p-4">
-                {/* Basic Information */}
-                <div className="space-y-4 !bg-white">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">🐕</span>
-                    <h3 className="text-lg font-semibold !text-gray-900">Basic Information</h3>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Name:</span>
-                      <span className="!text-gray-900">{selectedPet.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Owner:</span>
-                      <span className="!text-gray-900">{selectedPet.client?.name || 'Unknown'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Species:</span>
-                      <span className="!text-gray-900">{selectedPet.species?.name || 'Unknown'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Breed:</span>
-                      <span className="!text-gray-900">{selectedPet.breed?.name || 'Unknown'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Gender:</span>
-                      <span className="!text-gray-900 capitalize flex items-center">
-                        <span className="mr-1">{getGenderIcon(selectedPet.gender)}</span>
-                        {selectedPet.gender}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Age:</span>
-                      <span className="!text-gray-900">{calculateAge(selectedPet.dob)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Weight:</span>
-                      <span className="!text-gray-900">{selectedPet.weight} kg</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Color:</span>
-                      <span className="!text-gray-900">{selectedPet.color}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-medium !text-gray-700">Status:</span>
-                      <span className={`px-2 py-1 rounded text-sm ${
-                        selectedPet.status 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {selectedPet.status ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Medical History */}
-                <div className="space-y-4 !bg-white">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">📋</span>
-                    <h3 className="text-lg font-semibold !text-gray-900">Medical History</h3>
-                  </div>
-                  
-                  <div className="!text-gray-700">
-                    {selectedPet.medical_history || 'No medical history recorded.'}
-                  </div>
-                </div>
-
-                {/* Allergies */}
-                <div className="space-y-4 !bg-white">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">⚠️</span>
-                    <h3 className="text-lg font-semibold !text-gray-900">Allergies</h3>
-                  </div>
-                  
-                  <div>
-                    {selectedPet.allergies && selectedPet.allergies.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedPet.allergies.map((allergy) => (
-                          <div key={allergy.id} className="p-3 bg-red-50 border border-red-200 rounded">
-                            <div className="font-medium text-red-800">{allergy.name}</div>
-                            {allergy.description && (
-                              <div className="text-sm text-red-600 mt-1">{allergy.description}</div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="!text-gray-600">No known allergies</div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Vaccinations */}
-                <div className="space-y-4 !bg-white">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">💉</span>
-                    <h3 className="text-lg font-semibold !text-gray-900">Vaccinations</h3>
-                  </div>
-                  
-                  <div>
-                    {selectedPet.vaccinations && selectedPet.vaccinations.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedPet.vaccinations.map((vaccination) => (
-                          <div key={vaccination.id} className="p-3 bg-blue-50 border border-blue-200 rounded">
-                            <div className="font-medium text-blue-800">{vaccination.name}</div>
-                            <div className="text-sm text-blue-600 mt-1">
-                              Duration: {vaccination.duration_months} months
-                            </div>
-                            {vaccination.description && (
-                              <div className="text-sm text-blue-600 mt-1">{vaccination.description}</div>
-                            )}
-                            {vaccination.pivot && vaccination.pivot.next_due_date && (
-                              <div className="text-sm text-blue-600 mt-1">
-                                Next Due: {new Date(vaccination.pivot.next_due_date).toLocaleDateString()}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="!text-gray-600">No vaccination records</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
 
         {/* Medical Records Modal */}
-        {isMedicalModalOpen && selectedPet && (
-          <Dialog open={isMedicalModalOpen} onOpenChange={setIsMedicalModalOpen}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto !bg-white !border-gray-200 !text-gray-900">
-              <DialogHeader className="!bg-white">
-                <DialogTitle className="flex items-center gap-2 !text-gray-900">
-                  <span className="text-2xl">🩺</span>
-                  Medical Records - {selectedPet.name}
-                </DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-6 !bg-white p-4">
-                {/* Medical History */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold !text-gray-900 mb-3">📋 Medical History</h3>
-                  <p className="!text-gray-700">{selectedPet.medical_history || 'No medical history recorded.'}</p>
-                </div>
-
-                {/* Allergies */}
-                <div className="bg-red-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-red-800 mb-3">⚠️ Allergies ({selectedPet.allergies?.length || 0})</h3>
-                  {selectedPet.allergies && selectedPet.allergies.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedPet.allergies.map((allergy) => (
-                        <div key={allergy.id} className="p-3 bg-white border border-red-200 rounded">
-                          <div className="font-medium text-red-800">{allergy.name}</div>
-                          {allergy.description && (
-                            <div className="text-sm text-red-600 mt-1">{allergy.description}</div>
-                          )}
-                        </div>
-                      ))}
+        {isMedicalModalOpen && medicalPet && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Apple-like liquid glass background */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-br from-[#007c7c]/30 via-[#005f5f]/20 to-[#004d4d]/25 backdrop-blur-2xl transition-opacity duration-300"
+              onClick={() => setIsMedicalModalOpen(false)}
+            />
+            
+            {/* Minimal floating elements */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="floating-element absolute top-20 left-10 w-12 h-12 bg-white/5 rounded-full"></div>
+              <div className="floating-element-reverse absolute bottom-20 right-10 w-8 h-8 bg-white/8 rounded-full"></div>
+                  </div>
+                  
+            {/* Modal container with Apple-like transparent glass effect */}
+            <div className="relative w-full max-w-4xl max-h-[95vh]">
+              {/* Transparent glass effect with drop shadow */}
+              <div className="bg-white/20 backdrop-blur-3xl rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-white/40">
+                {/* Header with subtle glass effect */}
+                <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/10">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <FontAwesomeIcon icon={faFileAlt} className="mr-3 text-[#007c7c]" />
+                    Medical Records - {medicalPet.name}
+                  </h2>
+                  <button
+                    onClick={() => setIsMedicalModalOpen(false)}
+                    className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
+                    disabled={isMedicalUpdating}
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="text-lg text-gray-700" />
+                  </button>
                     </div>
-                  ) : (
-                    <p className="text-red-600">No known allergies</p>
-                  )}
-                </div>
 
-                {/* Vaccinations */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-3">💉 Vaccinations ({selectedPet.vaccinations?.length || 0})</h3>
-                  {selectedPet.vaccinations && selectedPet.vaccinations.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedPet.vaccinations.map((vaccination) => (
-                        <div key={vaccination.id} className="p-3 bg-white border border-blue-200 rounded">
-                          <div className="font-medium text-blue-800">{vaccination.name}</div>
-                          <div className="text-sm text-blue-600 mt-1">
-                            Duration: {vaccination.duration_months} months
+                {/* Success Message */}
+                {medicalSuccessMessage && (
+                  <div className="mx-6 mt-4 p-4 bg-green-50/80 backdrop-blur-sm border border-green-200/50 rounded-xl">
+                    <div className="flex items-center">
+                      <FontAwesomeIcon icon={faCheckCircle} className="text-green-600 mr-3" />
+                      <span className="text-green-800 font-medium">{medicalSuccessMessage}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Content with transparent glass styling */}
+                <div className="max-h-[calc(95vh-140px)] overflow-y-auto">
+                  <div className="p-6 space-y-6">
+                    {/* Pet Information - Compact */}
+                    <div className="bg-white/30 backdrop-blur-sm p-4 rounded-2xl border border-white/20">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <FontAwesomeIcon icon={faPaw} className="mr-3 text-[#007c7c]" />
+                        Pet Information
+                        </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                          <div className="px-3 py-2 bg-white/30 backdrop-blur-sm border border-white/40 rounded-lg text-sm text-gray-900">
+                            {medicalPet.name}
                           </div>
-                          {vaccination.description && (
-                            <div className="text-sm text-blue-600 mt-1">{vaccination.description}</div>
-                          )}
-                          {vaccination.pivot && vaccination.pivot.next_due_date && (
-                            <div className="text-sm text-blue-600 mt-1">
-                              Next Due: {new Date(vaccination.pivot.next_due_date).toLocaleDateString()}
-                            </div>
-                          )}
                         </div>
-                      ))}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Species</label>
+                          <div className="px-3 py-2 bg-white/30 backdrop-blur-sm border border-white/40 rounded-lg text-sm text-gray-900">
+                            {medicalPet.species?.name || 'Not specified'}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Breed</label>
+                          <div className="px-3 py-2 bg-white/30 backdrop-blur-sm border border-white/40 rounded-lg text-sm text-gray-900">
+                            {medicalPet.breed?.name || 'Not specified'}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Age</label>
+                          <div className="px-3 py-2 bg-white/30 backdrop-blur-sm border border-white/40 rounded-lg text-sm text-gray-900">
+                            {medicalPet.dob ? calculateAge(medicalPet.dob) : 'Not specified'}
+                          </div>
+                        </div>
                     </div>
-                  ) : (
-                    <p className="text-blue-600">No vaccination records</p>
-                  )}
+                    </div>
+
+                    {/* Medical Records Tabs */}
+                    <div className="bg-white/30 backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+                      <div className="flex border-b border-white/20">
+                        <button
+                          onClick={() => setMedicalActiveTab('history')}
+                          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                            medicalActiveTab === 'history'
+                              ? 'bg-white/20 text-[#007c7c] border-b-2 border-[#007c7c]'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-white/10'
+                          }`}
+                        >
+                          <FontAwesomeIcon icon={faHeartbeat} className="mr-2" />
+                          Medical History
+                        </button>
+                        <button
+                          onClick={() => setMedicalActiveTab('allergies')}
+                          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                            medicalActiveTab === 'allergies'
+                              ? 'bg-white/20 text-[#007c7c] border-b-2 border-[#007c7c]'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-white/10'
+                          }`}
+                        >
+                          <FontAwesomeIcon icon={faShieldAlt} className="mr-2" />
+                          Allergies ({medicalAllergies?.length || 0})
+                        </button>
+                        <button
+                          onClick={() => setMedicalActiveTab('vaccinations')}
+                          className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                            medicalActiveTab === 'vaccinations'
+                              ? 'bg-white/20 text-[#007c7c] border-b-2 border-[#007c7c]'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-white/10'
+                          }`}
+                        >
+                          <FontAwesomeIcon icon={faSyringe} className="mr-2" />
+                          Vaccinations ({medicalVaccinations?.length || 0})
+                        </button>
+                    </div>
+
+                      {/* History Tab */}
+                      {medicalActiveTab === 'history' && (
+                        <div className="p-6">
+                          <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                            <FontAwesomeIcon icon={faHeartbeat} className="mr-2 text-blue-500" />
+                            Medical History
+                          </h4>
+                          
+                          {/* Current Medical History */}
+                          <div className="mb-6">
+                            <h5 className="text-sm font-medium text-gray-700 mb-3">Current Medical History</h5>
+                            {medicalHistory ? (
+                              <div className="bg-white/20 backdrop-blur-sm p-4 rounded-lg border border-blue-200/30">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="text-sm text-gray-900 whitespace-pre-wrap leading-relaxed">
+                                      {medicalHistory}
+                    </div>
+                    </div>
+                                  <button 
+                                    onClick={() => setMedicalHistory('')}
+                                    className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-100/20 transition-colors ml-2"
+                                    title="Clear history"
+                                  >
+                                    <FontAwesomeIcon icon={faTrash} className="text-sm" />
+                                  </button>
+                  </div>
+                </div>
+                            ) : (
+                              <div className="bg-gray-50/50 backdrop-blur-sm p-4 rounded-lg border border-gray-200/30">
+                                <p className="text-gray-500 italic text-sm">No medical history recorded</p>
+                              </div>
+                            )}
+                  </div>
+                  
+                          {/* Edit Medical History */}
+                          <div className="border-t border-blue-200/30 pt-4">
+                            <h5 className="text-sm font-medium text-gray-700 mb-3">Update Medical History</h5>
+                            <div className="space-y-3">
+                              <textarea
+                                value={medicalHistory}
+                                onChange={(e) => setMedicalHistory(e.target.value)}
+                                placeholder="Enter medical history, conditions, treatments, surgeries, medications, or any other relevant medical information..."
+                                className="w-full h-32 px-3 py-2 bg-white/30 backdrop-blur-sm border border-blue-300/50 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none"
+                              />
+                              <div className="flex justify-between items-center">
+                                <p className="text-xs text-gray-500">
+                                  Include any medical conditions, treatments, surgeries, medications, or other relevant information
+                                </p>
+                                <div className="text-xs text-gray-400">
+                                  {medicalHistory.length} characters
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Allergies Tab */}
+                      {medicalActiveTab === 'allergies' && (
+                        <div className="p-6">
+                          {/* Existing Allergies */}
+                          <div className="mb-6">
+                            <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                              <FontAwesomeIcon icon={faShieldAlt} className="mr-2 text-red-500" />
+                              Current Allergies
+                            </h4>
+                            <div className="space-y-3">
+                              {medicalAllergies && medicalAllergies.length > 0 ? (
+                                medicalAllergies.map((allergy) => (
+                                  <div key={allergy.id} className="flex justify-between items-center p-3 bg-white/20 backdrop-blur-sm border border-red-200/30 rounded-lg">
+                                    <div>
+                                      <div className="font-medium text-red-800 text-sm">
+                                {allergy.name}
+                                        {allergy.isNew && <span className="text-xs text-green-600 ml-2">(New)</span>}
+                  </div>
+                            {allergy.description && (
+                                        <div className="text-xs text-red-600 mt-1">{allergy.description}</div>
+                            )}
+                          </div>
+                                    <button 
+                                      onClick={() => handleMedicalRemoveAllergy(allergy.id)}
+                                      className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-100/20 transition-colors"
+                                      title="Remove allergy"
+                                    >
+                                      <FontAwesomeIcon icon={faTrash} className="text-sm" />
+                                    </button>
+                      </div>
+                                ))
+                              ) : (
+                                <p className="text-red-600 italic text-sm">No allergies recorded</p>
+                              )}
+                  </div>
+                </div>
+
+                          {/* Add New Allergy */}
+                          <div className="border-t border-red-200/30 pt-4">
+                            <h4 className="text-md font-semibold text-gray-900 mb-3">Add New Allergy</h4>
+                            <div className="space-y-3">
+                              <div className="relative">
+                                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                                <input
+                                  type="text"
+                                  placeholder="Search allergies..."
+                                  value={allergySearchTerm}
+                                  onChange={(e) => setAllergySearchTerm(e.target.value)}
+                                  className="w-full pl-10 pr-4 py-2 bg-white/30 backdrop-blur-sm border border-red-300/50 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all"
+                                  disabled={isLoadingAllergies}
+                                />
+                              </div>
+                              <div className="max-h-32 overflow-y-auto bg-white/20 backdrop-blur-sm border border-red-200/30 rounded-lg">
+                                {filteredAllergies.length === 0 ? (
+                                  <div className="p-3 text-center text-gray-500 text-xs">
+                                    {allergySearchTerm ? 'No allergies found' : 'No allergies available'}
+                                  </div>
+                                ) : (
+                                  filteredAllergies.map(allergy => (
+                                    <button
+                                      key={allergy.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setMedicalNewAllergy(prev => ({ ...prev, name: allergy.id }));
+                                        setAllergySearchTerm('');
+                                      }}
+                                      className="w-full p-2 text-left hover:bg-white/30 transition-colors text-gray-900 text-sm"
+                                    >
+                                      <div className="font-medium">{allergy.name}</div>
+                                      {allergy.description && <div className="text-xs text-gray-600">{allergy.description}</div>}
+                                    </button>
+                                  ))
+                      )}
+                  </div>
+                              {medicalNewAllergy.name && (
+                                <div className="flex items-center justify-between">
+                                  <div className="text-sm text-red-700">
+                                    Selected: {availableAllergies.find(a => a.id === medicalNewAllergy.name)?.name}
+                                  </div>
+                                  <button 
+                                    onClick={handleMedicalAddAllergy}
+                                    className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+                                    disabled={isLoadingAllergies}
+                                  >
+                                    {isLoadingAllergies ? (
+                                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                    ) : (
+                                      <>
+                                        <FontAwesomeIcon icon={faPlus} className="mr-1 text-xs" />
+                                        Add
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Vaccinations Tab */}
+                      {medicalActiveTab === 'vaccinations' && (
+                        <div className="p-6">
+                          {/* Existing Vaccinations */}
+                          <div className="mb-6">
+                            <h4 className="text-md font-semibold text-gray-900 mb-4 flex items-center">
+                              <FontAwesomeIcon icon={faSyringe} className="mr-2 text-blue-500" />
+                              Current Vaccinations
+                            </h4>
+                            <div className="space-y-3">
+                              {medicalVaccinations && medicalVaccinations.length > 0 ? (
+                                medicalVaccinations.map((vaccination) => (
+                                  <div key={vaccination.id} className="flex justify-between items-center p-3 bg-white/20 backdrop-blur-sm border border-blue-200/30 rounded-lg">
+                                    <div className="flex-1">
+                                      <div className="font-medium text-blue-800 text-sm">
+                                {vaccination.name}
+                                        {vaccination.isNew && <span className="text-xs text-green-600 ml-2">(New)</span>}
+                            </div>
+                                      <div className="text-xs text-blue-600 mt-1">
+                                        Duration: {vaccination.duration_months} months
+                                      </div>
+                                      {vaccination.pivot && (
+                                        <>
+                                          {vaccination.pivot.vaccination_date && (
+                                            <div className="text-xs text-blue-600">
+                                              Given: {vaccination.pivot.vaccination_date === new Date().toISOString().split('T')[0] ? 'Today' : new Date(vaccination.pivot.vaccination_date).toLocaleDateString()}
+                                            </div>
+                                          )}
+                                          {vaccination.pivot.next_due_date && (
+                                            <div className="text-xs text-blue-600">
+                                              Next Due: {new Date(vaccination.pivot.next_due_date).toLocaleDateString()}
+                                            </div>
+                                          )}
+                                        </>
+                                      )}
+                            {vaccination.description && (
+                                        <div className="text-xs text-blue-600 mt-1">{vaccination.description}</div>
+                              )}
+                                 </div>
+                                    <button 
+                                      onClick={() => handleMedicalRemoveVaccination(vaccination.id)}
+                                      className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-100/20 transition-colors ml-2"
+                                      title="Remove vaccination"
+                                    >
+                                      <FontAwesomeIcon icon={faTrash} className="text-sm" />
+                                    </button>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-blue-600 italic text-sm">No vaccinations recorded</p>
+                              )}
+                              </div>
+                          </div>
+
+                          {/* Add New Vaccination */}
+                          <div className="border-t border-blue-200/30 pt-4">
+                            <h4 className="text-md font-semibold text-gray-900 mb-3">Add New Vaccination</h4>
+                            <div className="space-y-3">
+                              <div className="relative">
+                                <FontAwesomeIcon icon={faSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
+                                <input
+                                  type="text"
+                                  placeholder="Search vaccinations..."
+                                  value={vaccinationSearchTerm}
+                                  onChange={(e) => setVaccinationSearchTerm(e.target.value)}
+                                  className="w-full pl-10 pr-4 py-2 bg-white/30 backdrop-blur-sm border border-blue-300/50 rounded-lg text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                                  disabled={isLoadingVaccinations}
+                                />
+                              </div>
+                              <div className="max-h-32 overflow-y-auto bg-white/20 backdrop-blur-sm border border-blue-200/30 rounded-lg">
+                                {filteredVaccinations.length === 0 ? (
+                                  <div className="p-3 text-center text-gray-500 text-xs">
+                                    {vaccinationSearchTerm ? 'No vaccinations found' : 'No vaccinations available'}
+                                  </div>
+                                ) : (
+                                  filteredVaccinations.map(vaccination => (
+                                    <button
+                                      key={vaccination.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setMedicalNewVaccination(prev => ({ ...prev, name: vaccination.id }));
+                                        setVaccinationSearchTerm('');
+                                      }}
+                                      className="w-full p-2 text-left hover:bg-white/30 transition-colors text-gray-900 text-sm"
+                                    >
+                                      <div className="font-medium">{vaccination.name}</div>
+                                      <div className="text-xs text-gray-600">Duration: {vaccination.duration_months} months</div>
+                                      {vaccination.description && <div className="text-xs text-gray-600">{vaccination.description}</div>}
+                                    </button>
+                                  ))
+                            )}
+                          </div>
+                              {medicalNewVaccination.name && (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-sm text-blue-700">
+                                      Selected: {availableVaccinations.find(v => v.id === medicalNewVaccination.name)?.name}
+                      </div>
+                                    <button 
+                                      onClick={handleMedicalAddVaccination}
+                                      className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
+                                      disabled={isLoadingVaccinations}
+                                    >
+                                      {isLoadingVaccinations ? (
+                                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                      ) : (
+                                        <>
+                                          <FontAwesomeIcon icon={faPlus} className="mr-1 text-xs" />
+                                          Add
+                                        </>
+                                      )}
+                                    </button>
+                          </div>
+                                  
+                                  {/* Vaccination Date */}
+                                  <div className="flex gap-2">
+                                    <input 
+                                      type="date" 
+                                      value={medicalNewVaccination.vaccination_date}
+                                      onChange={(e) => setMedicalNewVaccination(prev => ({ ...prev, vaccination_date: e.target.value }))}
+                                      className="flex-1 px-3 py-2 bg-white/30 backdrop-blur-sm border border-blue-300/50 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                                    />
+                                    <button 
+                                      type="button"
+                                      className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors"
+                                      onClick={setMedicalTodayDate}
+                                    >
+                                      Today
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Appointment Scheduling */}
+                                  <div className="bg-green-50/50 backdrop-blur-sm border border-green-200/30 rounded-lg p-3">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                      <input 
+                                        type="checkbox" 
+                                        id="medicalCreateAppointment"
+                                        checked={medicalNewVaccination.createAppointment}
+                                        onChange={(e) => setMedicalNewVaccination(prev => ({ ...prev, createAppointment: e.target.checked }))}
+                                        className="w-4 h-4 text-green-600 bg-white/30 border-green-300/50 rounded"
+                                      />
+                                      <label htmlFor="medicalCreateAppointment" className="text-sm font-medium text-green-800">
+                                        Schedule next appointment
+                                      </label>
+                                    </div>
+                                    {medicalNewVaccination.createAppointment && (
+                                      <div className="ml-6 flex items-center space-x-2">
+                                        <span className="text-xs text-green-700">Time:</span>
+                                        <input 
+                                          type="time" 
+                                          value={medicalNewVaccination.appointmentTime}
+                                          onChange={(e) => setMedicalNewVaccination(prev => ({ ...prev, appointmentTime: e.target.value }))}
+                                          className="px-2 py-1 border border-green-300/50 rounded text-xs bg-white/30 backdrop-blur-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all"
+                                        />
+                                        <span className="text-xs text-green-600">
+                                          (Next due: {medicalNewVaccination.vaccination_date && medicalNewVaccination.name ? 
+                                            (() => {
+                                              const selectedVaccination = availableVaccinations.find(v => v.id === medicalNewVaccination.name);
+                                              return selectedVaccination ? 
+                                                new Date(calculateNextDueDate(medicalNewVaccination.vaccination_date, selectedVaccination.duration_months)).toLocaleDateString() : 
+                                                'Select vaccination type first';
+                                            })() : 
+                                            'Select date & vaccination type first'})
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
+
+                {/* Footer */}
+                <div className="flex justify-end p-6 border-t border-white/20 bg-white/10">
+                  <div className="flex space-x-3">
+                  <button
+                      onClick={() => setIsMedicalModalOpen(false)}
+                      className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+                      disabled={isMedicalUpdating}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleMedicalSaveChanges}
+                      disabled={isMedicalUpdating}
+                      className="px-6 py-2 bg-[#007c7c] text-white rounded-xl hover:bg-[#005f5f] transition-colors duration-200 font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isMedicalUpdating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faSave} className="text-sm" />
+                          <span>Save Medical Records</span>
+                        </>
+                      )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div>
         )}
 
         {/* Schedule Appointment Modal */}
         {isScheduleModalOpen && selectedPet && (
-          <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
-            <DialogContent className="max-w-2xl w-[90vw] h-[90vh] !bg-white !border-gray-200 !text-gray-900 p-0 flex flex-col rounded-lg overflow-hidden">
-              <DialogHeader className="!bg-white border-b border-gray-200 p-4 pr-12 flex-shrink-0">
-                <DialogTitle className="flex items-center gap-2 !text-gray-900">
-                  <span className="text-2xl">📅</span>
-                  Schedule Appointment - {selectedPet.name}
-                </DialogTitle>
-              </DialogHeader>
-              
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-4">
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-green-800 mb-3">🐕 Pet Information</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div><span className="font-medium">Name:</span> {selectedPet.name}</div>
-                    <div><span className="font-medium">Owner:</span> {selectedPet.client?.name || 'Unknown'}</div>
-                    <div><span className="font-medium">Species:</span> {selectedPet.species?.name || 'Unknown'}</div>
-                    <div><span className="font-medium">Age:</span> {calculateAge(selectedPet.dob)}</div>
-                  </div>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Apple-like liquid glass background */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-br from-[#007c7c]/30 via-[#005f5f]/20 to-[#004d4d]/25 backdrop-blur-2xl transition-opacity duration-300"
+              onClick={() => {
+                setIsScheduleModalOpen(false);
+                setPetAppointments([]);
+              }}
+            />
+            
+            {/* Minimal floating elements */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="floating-element absolute top-20 left-10 w-12 h-12 bg-white/5 rounded-full"></div>
+              <div className="floating-element-reverse absolute bottom-20 right-10 w-8 h-8 bg-white/8 rounded-full"></div>
                 </div>
 
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-3">📋 Appointment Booking</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Appointment Date</label>
-                      <input type="date" className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Appointment Time</label>
-                      <select className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900">
-                        <option>9:00 AM</option>
-                        <option>10:00 AM</option>
-                        <option>11:00 AM</option>
-                        <option>2:00 PM</option>
-                        <option>3:00 PM</option>
-                        <option>4:00 PM</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Service Type</label>
-                      <select className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900">
-                        <option>General Checkup</option>
-                        <option>Vaccination</option>
-                        <option>Surgery</option>
-                        <option>Emergency</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Notes</label>
-                      <textarea className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900" rows={3} placeholder="Additional notes..."></textarea>
-                    </div>
-                  </div>
+            {/* Modal container with Apple-like transparent glass effect */}
+            <div className="relative w-full max-w-6xl h-[90vh]">
+              {/* Transparent glass effect with drop shadow */}
+              <div className="bg-white/20 backdrop-blur-3xl rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-white/40 h-full flex flex-col">
+                {/* Header with subtle glass effect */}
+                <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/10 flex-shrink-0">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <FontAwesomeIcon icon={faCalendarAlt} className="mr-2 text-[#007c7c]" />
+                    Schedule Appointment - {selectedPet.name}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setIsScheduleModalOpen(false);
+                      setPetAppointments([]);
+                    }}
+                    className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="text-lg text-gray-700" />
+                  </button>
                 </div>
-                </div>
-              </div>
 
-              <div className="flex justify-end space-x-3 p-4 border-t border-gray-200 !bg-white flex-shrink-0">
-                <button 
-                  onClick={() => setIsScheduleModalOpen(false)}
-                  className="px-4 py-2 !text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => {
-                    alert('Appointment scheduled successfully!');
-                    setIsScheduleModalOpen(false);
-                  }}
-                  className="px-4 py-2 bg-[#007c7c] text-white rounded-md hover:bg-[#005f5f]"
-                >
-                  Schedule Appointment
-                </button>
+                {/* Content with transparent glass styling */}
+                <div className="flex-1 overflow-y-auto min-h-0 p-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                    {/* Left Panel - Appointment Records */}
+                    <div className="space-y-6">
+                      {/* Scheduled Appointments */}
+                        <div className="bg-white/30 backdrop-blur-sm p-6 rounded-2xl border border-white/20">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                          <FontAwesomeIcon icon={faCalendarPlus} className="mr-3 text-[#007c7c]" />
+                            Scheduled Appointments ({petAppointments.filter(apt => apt.appointment_status === 'scheduled').length})
+                        </h3>
+                          {petAppointments.filter(apt => apt.appointment_status === 'scheduled').length > 0 ? (
+                            <div className="space-y-2">
+                              {petAppointments.filter(apt => apt.appointment_status === 'scheduled').map((appointment) => (
+                                <div key={appointment.id} className="bg-blue-50/50 backdrop-blur-sm p-3 rounded-xl border border-blue-200/30">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <FontAwesomeIcon icon={faCalendarPlus} className="mr-2 text-blue-500 w-3" />
+                                      <span className="font-medium text-blue-800">{appointment.service?.name || 'Unknown Service'}</span>
+                                    </div>
+                                    <span className="text-xs text-blue-600">
+                                      {new Date(appointment.appointment_date).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-blue-600 mt-1">
+                                    <FontAwesomeIcon icon={faUser} className="mr-1 w-3" />
+                                    {appointment.user?.name || 'Unknown Vet'}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50/50 backdrop-blur-sm p-3 rounded-xl border border-gray-200/30">
+                              <div className="text-gray-600 flex items-center">
+                                <FontAwesomeIcon icon={faInfoCircle} className="mr-2 text-gray-400 w-4" />
+                                No scheduled appointments
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Previous Appointments */}
+                      <div className="bg-white/30 backdrop-blur-sm p-6 rounded-2xl border border-white/20">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                          <FontAwesomeIcon icon={faCalendarAlt} className="mr-3 text-gray-600" />
+                            Previous Appointments ({petAppointments.filter(apt => apt.appointment_status !== 'scheduled').length})
+                        </h3>
+                          {petAppointments.filter(apt => apt.appointment_status !== 'scheduled').length > 0 ? (
+                            <div className="space-y-2">
+                              {petAppointments.filter(apt => apt.appointment_status !== 'scheduled').map((appointment) => (
+                                <div key={appointment.id} className="bg-green-50/50 backdrop-blur-sm p-3 rounded-xl border border-green-200/30">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <FontAwesomeIcon icon={faCalendarAlt} className="mr-2 text-green-500 w-3" />
+                                      <span className="font-medium text-green-800">{appointment.service?.name || 'Unknown Service'}</span>
+                                    </div>
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                      appointment.appointment_status === 'completed' ? 'bg-green-100 text-green-800' :
+                                      appointment.appointment_status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                      'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {appointment.appointment_status.replace('_', ' ')}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-green-600 mt-1">
+                                    <FontAwesomeIcon icon={faCalendarAlt} className="mr-1 w-3" />
+                                    {new Date(appointment.appointment_date).toLocaleDateString()}
+                                    <span className="mx-2">•</span>
+                                    <FontAwesomeIcon icon={faUser} className="mr-1 w-3" />
+                                    {appointment.user?.name || 'Unknown Vet'}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="bg-gray-50/50 backdrop-blur-sm p-3 rounded-xl border border-gray-200/30">
+                              <div className="text-gray-600 flex items-center">
+                                <FontAwesomeIcon icon={faInfoCircle} className="mr-2 text-gray-400 w-4" />
+                                No previous appointments found
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+
+                    {/* Right Panel - New Appointment Form */}
+                  <div className="bg-white/30 backdrop-blur-sm p-6 rounded-2xl border border-white/20">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                          <FontAwesomeIcon icon={faCalendarPlus} className="mr-3 text-[#007c7c]" />
+                          New Appointment
+                        </h3>
+                        <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                    <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Appointment Date</label>
+                            <input 
+                              type="date" 
+                              value={appointmentFormData.appointment_date}
+                              onChange={(e) => handleAppointmentFormChange('appointment_date', e.target.value)}
+                              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Appointment Time</label>
+                            <input 
+                              type="time" 
+                              value={appointmentFormData.appointment_time}
+                              onChange={(e) => handleAppointmentFormChange('appointment_time', e.target.value)}
+                              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm"
+                            />
+                          </div>
+                    </div>
+                    <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Service</label>
+                            <select 
+                              value={appointmentFormData.service_id}
+                              onChange={(e) => handleAppointmentFormChange('service_id', e.target.value)}
+                              disabled={isLoadingServices}
+                              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <option value="">
+                                {isLoadingServices ? 'Loading services...' : 
+                                 services && services.length > 0 ? 'Select a service' : 'No services available'}
+                              </option>
+                              {services && services.length > 0 && services.map((service) => (
+                                <option key={service.id} value={service.id}>
+                                  {service.name} - ${typeof service.price === 'string' ? parseFloat(service.price) : service.price}
+                                </option>
+                              ))}
+                            </select>
+                          {!appointmentFormData.service_id && !isLoadingServices && services.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">Please select a service to continue</p>
+                          )}
+                    </div>
+                    <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Veterinarian</label>
+                            <select 
+                              value={appointmentFormData.veterinarian_id}
+                              onChange={(e) => handleAppointmentFormChange('veterinarian_id', e.target.value)}
+                              disabled={isLoadingVeterinarians}
+                              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <option value="">
+                                {isLoadingVeterinarians ? 'Loading veterinarians...' : 
+                                 veterinarians && veterinarians.length > 0 ? 'Select a veterinarian' : 'No veterinarians available'}
+                              </option>
+                              {veterinarians && veterinarians.length > 0 && veterinarians.map((vet) => (
+                                <option key={vet.id} value={vet.id}>
+                                  {vet.name} ({vet.role})
+                                </option>
+                              ))}
+                            </select>
+                          {!appointmentFormData.veterinarian_id && !isLoadingVeterinarians && veterinarians.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-1">Please select a veterinarian to continue</p>
+                          )}
+                    </div>
+                    <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Duration (minutes)</label>
+                            <input 
+                              type="number" 
+                              value={appointmentFormData.duration_minutes}
+                              onChange={(e) => handleAppointmentFormChange('duration_minutes', parseInt(e.target.value))}
+                              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm"
+                              min="15"
+                              max="180"
+                            />
+                    </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                            <textarea 
+                              value={appointmentFormData.notes}
+                              onChange={(e) => handleAppointmentFormChange('notes', e.target.value)}
+                              rows={3}
+                              className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm"
+                              placeholder="Additional notes..."
+                            />
+                          </div>
+                          
+                          <button 
+                            onClick={handleCreateAppointment}
+                          disabled={isCreatingAppointment || !appointmentFormData.service_id || !appointmentFormData.veterinarian_id || !appointmentFormData.appointment_date || !appointmentFormData.appointment_time}
+                          className="w-full px-6 py-3 bg-[#007c7c] text-white rounded-xl hover:bg-[#005f5f] transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                        >
+                          {isCreatingAppointment ? (
+                            <>
+                              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Scheduling...
+                            </>
+                          ) : (
+                            <>
+                              <FontAwesomeIcon icon={faCalendarPlus} className="w-4 h-4" />
+                              Schedule Appointment
+                            </>
+                          )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+                                    
+                  {/* Footer */}
+                <div className="flex justify-end p-6 border-t border-white/20 bg-white/10 flex-shrink-0">
+                    <button 
+                      onClick={() => {
+                        setIsScheduleModalOpen(false);
+                        setPetAppointments([]);
+                      }}
+                      className="px-6 py-2 bg-[#007c7c] text-white rounded-xl hover:bg-[#005f5f] transition-colors duration-200 font-medium"
+                    >
+                      Close
+                    </button>
+                  </div>
               </div>
-            </DialogContent>
-          </Dialog>
+            </div>
+          </div>
         )}
 
         {/* Edit Pet Modal */}
         {isEditModalOpen && selectedPet && (
-          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogContent className="max-w-4xl w-[95vw] h-[95vh] !bg-white !border-gray-200 !text-gray-900 p-0 flex flex-col rounded-lg overflow-hidden">
-              <DialogHeader className="!bg-white border-b border-gray-200 p-4 pr-12 flex-shrink-0">
-                <DialogTitle className="flex items-center gap-2 !text-gray-900">
-                  <span className="text-2xl">✏️</span>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Apple-like liquid glass background */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-br from-[#007c7c]/30 via-[#005f5f]/20 to-[#004d4d]/25 backdrop-blur-2xl transition-opacity duration-300"
+              onClick={() => setIsEditModalOpen(false)}
+            />
+            
+            {/* Minimal floating elements */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="floating-element absolute top-20 left-10 w-12 h-12 bg-white/5 rounded-full"></div>
+              <div className="floating-element-reverse absolute bottom-20 right-10 w-8 h-8 bg-white/8 rounded-full"></div>
+            </div>
+            
+            {/* Modal container with Apple-like transparent glass effect */}
+            <div className="relative w-full max-w-5xl max-h-[90vh]">
+              {/* Transparent glass effect with drop shadow */}
+              <div className="bg-white/20 backdrop-blur-3xl rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-white/40">
+                {/* Header with subtle glass effect */}
+                <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/10">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <FontAwesomeIcon icon={faEdit} className="mr-3 text-[#007c7c]" />
                   Edit Pet - {selectedPet.name}
-                </DialogTitle>
-              </DialogHeader>
+                  </h2>
+                  <button
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
+                    disabled={isUpdating}
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="text-lg text-gray-700" />
+                  </button>
+                </div>
               
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-6">
+                              {/* Content with transparent glass styling */}
+                <div className="max-h-[calc(90vh-140px)] overflow-y-auto">
+                  <div className="p-6 space-y-6">
                 {/* Basic Information */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold !text-gray-900 mb-4">🐕 Basic Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/30 backdrop-blur-sm p-6 rounded-2xl border border-white/20">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                        <FontAwesomeIcon icon={faPaw} className="mr-3 text-[#007c7c]" />
+                        Basic Information
+                      </h3>
+                      <div className="grid grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Pet Name</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Pet Name</label>
                       <input 
                         type="text" 
                         value={editFormData.name} 
                         onChange={(e) => handleEditFormChange('name', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900" 
+                            className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm" 
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Gender</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
                       <select 
                         value={editFormData.gender} 
                         onChange={(e) => handleEditFormChange('gender', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900"
+                            className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm appearance-none"
                       >
                         <option value="male">Male</option>
                         <option value="female">Female</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Weight (kg)</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
                       <input 
                         type="number" 
                         value={editFormData.weight} 
                         onChange={(e) => handleEditFormChange('weight', parseFloat(e.target.value) || 0)}
-                        className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900" 
+                            className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm" 
                         step="0.1"
                         min="0"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Color</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
                       <input 
                         type="text" 
                         value={editFormData.color} 
                         onChange={(e) => handleEditFormChange('color', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900" 
+                            className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm" 
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Date of Birth</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
                       <input 
                         type="date" 
                         value={editFormData.dob} 
                         onChange={(e) => handleEditFormChange('dob', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900" 
+                            className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm" 
                       />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-sm font-medium !text-gray-700 mb-1">Medical History</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Medical History</label>
                       <textarea 
                         value={editFormData.medical_history} 
                         onChange={(e) => handleEditFormChange('medical_history', e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-md !bg-white !text-gray-900" 
+                            className="w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm resize-none" 
                         rows={3}
                         placeholder="Enter medical history..."
                       />
                     </div>
                   </div>
                 </div>
-
-                {/* Allergies Management */}
-                <div className="bg-red-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-red-800">⚠️ Allergies</h3>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    {editAllergies && editAllergies.length > 0 ? (
-                      editAllergies.map((allergy) => (
-                        <div key={allergy.id} className="flex justify-between items-center p-3 bg-white border border-red-200 rounded">
-                          <div>
-                            <div className="font-medium text-red-800">
-                              {allergy.name}
-                              {allergy.isNew && <span className="text-xs text-green-600 ml-2">(New)</span>}
-                            </div>
-                            {allergy.description && (
-                              <div className="text-sm text-red-600">{allergy.description}</div>
-                            )}
-                          </div>
-                          <button 
-                            onClick={() => handleRemoveAllergy(allergy.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Remove allergy"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-red-600 italic">No allergies recorded</p>
-                    )}
-                  </div>
-
-                  {/* Add New Allergy Form */}
-                  <div className="border-t border-red-200 pt-4">
-                    <div className="text-sm text-red-700 mb-2 font-medium">Add New Allergy</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Allergy name..." 
-                        value={newAllergy.name}
-                        onChange={(e) => setNewAllergy(prev => ({ ...prev, name: e.target.value }))}
-                        className="p-2 border border-red-300 rounded-md !bg-white !text-gray-900"
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Description (optional)..." 
-                        value={newAllergy.description}
-                        onChange={(e) => setNewAllergy(prev => ({ ...prev, description: e.target.value }))}
-                        className="p-2 border border-red-300 rounded-md !bg-white !text-gray-900"
-                      />
-                      <button 
-                        onClick={handleAddAllergy}
-                        className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                      >
-                        <FontAwesomeIcon icon={faPlus} className="mr-1" />
-                        Add
-                      </button>
-                    </div>
                   </div>
                 </div>
 
-                {/* Vaccinations Management */}
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-blue-800">💉 Vaccinations</h3>
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    {editVaccinations && editVaccinations.length > 0 ? (
-                      editVaccinations.map((vaccination) => (
-                        <div key={vaccination.id} className="flex justify-between items-center p-3 bg-white border border-blue-200 rounded">
-                          <div>
-                            <div className="font-medium text-blue-800">
-                              {vaccination.name}
-                              {vaccination.isNew && <span className="text-xs text-green-600 ml-2">(New)</span>}
-                            </div>
-                            <div className="text-sm text-blue-600">
-                              Duration: {vaccination.duration_months} months
-                            </div>
-                            {vaccination.pivot && (
-                              <>
-                                {vaccination.pivot.vaccination_date && (
-                                  <div className="text-sm text-blue-600">
-                                    Given: {vaccination.pivot.vaccination_date === new Date().toISOString().split('T')[0] ? 'Today' : new Date(vaccination.pivot.vaccination_date).toLocaleDateString()}
-                                  </div>
-                                )}
-                                {vaccination.pivot.next_due_date && (
-                                  <div className="text-sm text-blue-600">
-                                    Next Due: {new Date(vaccination.pivot.next_due_date).toLocaleDateString()}
-                                  </div>
-                                )}
-                              </>
-                            )}
-                            {vaccination.description && (
-                              <div className="text-sm text-blue-600">{vaccination.description}</div>
-                            )}
-                          </div>
-                          <button 
-                            onClick={() => handleRemoveVaccination(vaccination.id)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Remove vaccination"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                          </button>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-blue-600 italic">No vaccinations recorded</p>
-                    )}
-                  </div>
-
-                  {/* Add New Vaccination Form */}
-                  <div className="border-t border-blue-200 pt-4">
-                    <div className="text-sm text-blue-700 mb-3 font-medium">Add New Vaccination Record</div>
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <input 
-                        type="text" 
-                        placeholder="Vaccination name..." 
-                        value={newVaccination.name}
-                        onChange={(e) => setNewVaccination(prev => ({ ...prev, name: e.target.value }))}
-                        className="p-2 border border-blue-300 rounded-md !bg-white !text-gray-900"
-                      />
-                      <input 
-                        type="number" 
-                        placeholder="Duration (months)..." 
-                        value={newVaccination.duration_months || ''}
-                        onChange={(e) => setNewVaccination(prev => ({ ...prev, duration_months: parseInt(e.target.value) || 0 }))}
-                        className="p-2 border border-blue-300 rounded-md !bg-white !text-gray-900"
-                        min="1"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 gap-2 mb-2">
-                      <input 
-                        type="date" 
-                        max={new Date().toISOString().split('T')[0]}
-                        value={newVaccination.vaccination_date}
-                        onChange={(e) => setNewVaccination(prev => ({ ...prev, vaccination_date: e.target.value }))}
-                        className="p-2 border border-blue-300 rounded-md !bg-white !text-gray-900"
-                        title="Date vaccination was given"
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="Description (optional)..." 
-                        value={newVaccination.description}
-                        onChange={(e) => setNewVaccination(prev => ({ ...prev, description: e.target.value }))}
-                        className="p-2 border border-blue-300 rounded-md !bg-white !text-gray-900 col-span-2"
-                      />
-                      <button 
-                        onClick={handleAddVaccination}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        <FontAwesomeIcon icon={faPlus} className="mr-1" />
-                        Add
-                      </button>
-                    </div>
-                    <div className="flex gap-2 mb-3">
-                      <button 
-                        type="button"
-                        className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
-                        onClick={setTodayDate}
-                      >
-                        Set Today
-                      </button>
-                      <span className="text-xs text-blue-600 self-center">
-                        💡 Select the actual date the vaccination was given (past dates allowed)
-                      </span>
-                    </div>
-                    
-                    {/* Appointment Scheduling Options */}
-                    <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <input 
-                          type="checkbox" 
-                          id="createAppointment"
-                          checked={newVaccination.createAppointment}
-                          onChange={(e) => setNewVaccination(prev => ({ ...prev, createAppointment: e.target.checked }))}
-                          className="w-4 h-4 text-green-600 bg-white border-green-300 rounded"
-                        />
-                        <label htmlFor="createAppointment" className="text-sm font-medium text-green-800">
-                          📅 Schedule next vaccination appointment automatically
-                        </label>
-                      </div>
-                      {newVaccination.createAppointment && (
-                        <div className="ml-7 flex items-center space-x-2">
-                          <span className="text-xs text-green-700">Appointment time:</span>
-                          <input 
-                            type="time" 
-                            value={newVaccination.appointmentTime}
-                            onChange={(e) => setNewVaccination(prev => ({ ...prev, appointmentTime: e.target.value }))}
-                            className="px-2 py-1 border border-green-300 rounded text-xs !bg-white !text-gray-900"
-                          />
-                          <span className="text-xs text-green-600">
-                            (on next due date: {newVaccination.vaccination_date && newVaccination.duration_months ? 
-                              new Date(calculateNextDueDate(newVaccination.vaccination_date, newVaccination.duration_months)).toLocaleDateString() : 
-                              'Select date & duration first'})
-                          </span>
-                        </div>
+                {/* Footer */}
+                <div className="flex justify-end p-6 border-t border-white/20 bg-white/10">
+                  <div className="flex space-x-3">
+                    <button 
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+                      disabled={isUpdating}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleSaveChanges}
+                      disabled={isUpdating}
+                      className="px-6 py-2 bg-[#007c7c] text-white rounded-xl hover:bg-[#005f5f] transition-colors duration-200 font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isUpdating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faSave} className="text-sm" />
+                          <span>Save All Changes</span>
+                        </>
                       )}
-                    </div>
+                    </button>
                   </div>
                 </div>
-                </div>
               </div>
-
-              {/* Sticky Footer with Buttons */}
-              <div className="!bg-white border-t border-gray-200 p-4 flex justify-end space-x-3 flex-shrink-0">
-                <button 
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 !text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleSaveChanges}
-                  disabled={isUpdating}
-                  className="px-4 py-2 bg-[#007c7c] text-white rounded-md hover:bg-[#005f5f] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUpdating ? 'Saving...' : 'Save All Changes'}
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
+            </div>
+          </div>
         )}
 
         {/* Pet Registration Modal */}
@@ -1524,7 +2321,14 @@ const Pets: React.FC = () => {
             onSuccess={handleModalSuccess}
           />
         )}
-      </div>
+
+      {/* Pet Profile Modal */}
+      <PetProfileModal
+        isOpen={isProfileModalOpen}
+        petId={selectedPetId}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
+    </div>
     </Layout>
   );
 };

@@ -58,9 +58,9 @@ const Services = () => {
       };
 
       const response = await servicesApi.getServices(filters);
-      setServices(response.data);
-      setTotalPages(response.meta.last_page);
-      setTotalServices(response.meta.total);
+      setServices(response);
+      setTotalPages(1); // No pagination if no meta
+      setTotalServices(response.length);
     } catch (err) {
       setError('Failed to load services');
       console.error('Error loading services:', err);
@@ -132,7 +132,7 @@ const Services = () => {
     }
   };
 
-  const filteredServices = services.filter(service => {
+  const filteredServices = (Array.isArray(services) ? services : []).filter(service => {
     if (statusFilter === 'active') return service.status;
     if (statusFilter === 'inactive') return !service.status;
     return true;
@@ -154,6 +154,17 @@ const Services = () => {
     return colors[type as keyof typeof colors] || colors.other;
   };
 
+  // Reactivate service
+  const handleReactivateService = async (service: Service) => {
+    try {
+      await servicesApi.updateServiceStatus(service.id, true);
+      await loadServices();
+    } catch (err) {
+      console.error('Error reactivating service:', err);
+      alert('Failed to reactivate service');
+    }
+  };
+
   return (
     <Layout title="Services">
       <div>
@@ -167,7 +178,8 @@ const Services = () => {
           </div>
           <button 
             onClick={() => handleOpenModal()}
-            className="bg-[#007c7c] hover:bg-[#005f5f] text-white px-4 py-2 rounded-md flex items-center justify-center space-x-2 transition-all duration-200"
+            className="px-6 py-3 text-sm font-medium text-white bg-[#007c7c] hover:bg-[#005f5f] rounded-xl shadow-lg flex items-center space-x-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ minWidth: '160px' }}
           >
             <FontAwesomeIcon icon={faPlus} />
             <span>Create Service</span>
@@ -357,7 +369,7 @@ const Services = () => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">Duration</p>
-                        <p className="text-sm font-medium">{service.duration_minutes} minutes</p>
+                        <p className="text-sm font-medium">{service.duration} minutes</p>
                       </div>
                     </div>
 
@@ -376,12 +388,21 @@ const Services = () => {
                         <FontAwesomeIcon icon={faEdit} className="mr-1" />
                         Edit
                       </button>
-                      <button 
-                        onClick={() => handleDeleteService(service)}
-                        className="bg-red-50 text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-100 transition-colors"
-                      >
-                        <FontAwesomeIcon icon={faTrash} />
-                      </button>
+                      {service.status ? (
+                        <button 
+                          onClick={() => handleDeleteService(service)}
+                          className="bg-red-50 text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-100 transition-colors"
+                        >
+                          <FontAwesomeIcon icon={faTrash} />
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleReactivateService(service)}
+                          className="bg-green-50 text-green-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-green-100 transition-colors"
+                        >
+                          <FontAwesomeIcon icon={faCheck} /> Reactivate
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -420,7 +441,7 @@ const Services = () => {
                             ${Number(service.price).toFixed(2)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {service.duration_minutes} min
+                            {service.duration} min
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
@@ -439,13 +460,23 @@ const Services = () => {
                             >
                               <FontAwesomeIcon icon={faEdit} />
                             </button>
-                            <button 
-                              onClick={() => handleDeleteService(service)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Delete service"
-                            >
-                              <FontAwesomeIcon icon={faTrash} />
-                            </button>
+                            {service.status ? (
+                              <button 
+                                onClick={() => handleDeleteService(service)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Delete service"
+                              >
+                                <FontAwesomeIcon icon={faTrash} />
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={() => handleReactivateService(service)}
+                                className="text-green-600 hover:text-green-900 ml-3"
+                                title="Reactivate service"
+                              >
+                                <FontAwesomeIcon icon={faCheck} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                   ))}

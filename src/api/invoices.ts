@@ -7,51 +7,65 @@ export interface Invoice {
   pet_id?: string;
   invoice_date: string;
   due_date?: string;
-  subtotal: number | string;
-  discount_percent: number | string;
-  total: number | string;
-  payment_status: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  subtotal: number;
+  discount_percent: number;
+  discount_amount?: number;
+  total: number;
+  // Remove payment_status since we calculate it dynamically
   notes?: string;
   status: boolean;
   created_at: string;
   updated_at: string;
-  pdf_url?: string;
-  client?: {
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-  };
-  pet?: {
-    id: string;
-    name: string;
-    species?: string;
-  };
-  items?: InvoiceItem[];
+  client?: { id: string; name: string };
+  pet?: { id: string; name: string };
+  client_name?: string;
+  pet_name?: string;
+  deposit?: number;
 }
 
 export interface InvoiceItem {
   id: string;
   invoice_id: string;
   item_type: 'service' | 'product';
-  service_id?: number;
-  product_id?: number;
+  service_id?: string;
+  product_id?: string;
   item_name: string;
   item_description?: string;
   unit_price: number | string;
   quantity: number;
   discount_percent: number | string;
   net_price: number | string;
+  // Historical snapshot data
+  original_service_data?: {
+    id: string;
+    name: string;
+    description?: string;
+    price: number;
+    category?: string;
+    status: boolean;
+    snapshot_date: string;
+  };
+  original_product_data?: {
+    id: string;
+    name: string;
+    description?: string;
+    price: number;
+    category?: string;
+    stock_quantity?: number;
+    status: boolean;
+    snapshot_date: string;
+  };
 }
 
 export interface InvoiceFilters {
   client_id?: string;
   pet_id?: string;
-  payment_status?: string;
+  // Remove payment_status since we calculate it dynamically
   invoice_date_from?: string;
   invoice_date_to?: string;
   search?: string;
   include_inactive?: boolean;
+  include_deleted?: boolean;
   per_page?: number;
   page?: number;
   sort_by?: string;
@@ -65,7 +79,8 @@ export interface CreateInvoiceRequest {
   invoice_date: string;
   due_date?: string;
   discount_percent?: number;
-  payment_status?: 'pending' | 'paid' | 'overdue' | 'cancelled';
+  deposit?: number;
+  // Remove payment_status since we calculate it dynamically
   notes?: string;
   status?: boolean;
 }
@@ -93,42 +108,79 @@ export interface PaginatedResponse<T> {
 export const invoicesApi = {
   // Get all invoices with optional filters
   getInvoices: async (filters?: InvoiceFilters): Promise<PaginatedResponse<Invoice>> => {
-    const params = new URLSearchParams();
-    
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          params.append(key, value.toString());
-        }
-      });
+    try {
+      const params = new URLSearchParams();
+      
+      if (filters) {
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '') {
+            params.append(key, value.toString());
+          }
+        });
+      }
+      
+      const url = `/invoices/?${params.toString()}`;
+      console.log('🔄 Fetching invoices from:', url);
+      const response = await axiosInstance.get(url);
+      console.log('✅ Invoices response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching invoices:', error);
+      throw error;
     }
-    
-    const response = await axiosInstance.get(`/invoices?${params.toString()}`);
-    return response.data;
   },
 
   // Get single invoice by ID
   getInvoice: async (id: string, include?: string): Promise<Invoice> => {
-    const params = include ? `?include=${include}` : '';
-    const response = await axiosInstance.get(`/invoices/${id}${params}`);
-    return response.data.data;
+    try {
+      const params = include ? `?include=${include}` : '';
+      const url = `/invoices/${id}${params}`;
+      console.log('🔄 Fetching invoice from:', url);
+      const response = await axiosInstance.get(url);
+      console.log('✅ Invoice response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching invoice:', error);
+      throw error;
+    }
   },
 
   // Create new invoice
   createInvoice: async (invoiceData: CreateInvoiceRequest): Promise<Invoice> => {
-    const response = await axiosInstance.post('/invoices', invoiceData);
-    return response.data.data;
+    try {
+      console.log('🔄 Creating invoice:', invoiceData);
+      const response = await axiosInstance.post('/invoices/', invoiceData);
+      console.log('✅ Invoice created:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error creating invoice:', error);
+      throw error;
+    }
   },
 
   // Update existing invoice
   updateInvoice: async (id: string, invoiceData: UpdateInvoiceRequest): Promise<Invoice> => {
-    const response = await axiosInstance.put(`/invoices/${id}`, invoiceData);
-    return response.data.data;
+    try {
+      console.log('🔄 Updating invoice:', id, invoiceData);
+      const response = await axiosInstance.put(`/invoices/${id}`, invoiceData);
+      console.log('✅ Invoice updated:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error updating invoice:', error);
+      throw error;
+    }
   },
 
   // Delete invoice (soft delete)
   deleteInvoice: async (id: string): Promise<void> => {
-    await axiosInstance.delete(`/invoices/${id}`);
+    try {
+      console.log('🔄 Deleting invoice:', id);
+      await axiosInstance.delete(`/invoices/${id}`);
+      console.log('✅ Invoice deleted');
+    } catch (error) {
+      console.error('❌ Error deleting invoice:', error);
+      throw error;
+    }
   },
 
   // Download invoice PDF (deprecated - will be replaced with browser print)
@@ -421,10 +473,10 @@ export const invoicesApi = {
     `;
   },
 
-  // Get invoices by payment status
-  getInvoicesByStatus: async (status: 'pending' | 'paid' | 'overdue' | 'cancelled'): Promise<Invoice[]> => {
+  // Get invoices by status (now calculated dynamically)
+  getInvoicesByStatus: async (status: 'pending' | 'paid' | 'empty'): Promise<Invoice[]> => {
+    // Note: Status filtering is now handled on the frontend since we calculate status dynamically
     const response = await invoicesApi.getInvoices({
-      payment_status: status,
       sort_by: 'invoice_date',
       sort_order: 'desc'
     });
@@ -436,19 +488,23 @@ export const invoicesApi = {
     return await invoicesApi.getInvoicesByStatus('pending');
   },
 
-  // Get overdue invoices
-  getOverdueInvoices: async (): Promise<Invoice[]> => {
-    return await invoicesApi.getInvoicesByStatus('overdue');
+  // Get empty invoices
+  getEmptyInvoices: async (): Promise<Invoice[]> => {
+    return await invoicesApi.getInvoicesByStatus('empty');
   },
 
-  // Mark invoice as paid
-  markAsPaid: async (id: string): Promise<Invoice> => {
-    return await invoicesApi.updateInvoice(id, { payment_status: 'paid' });
+  // Mark invoice as paid (update deposit to match total)
+  markAsPaid: async (invoiceId: string): Promise<void> => {
+    // Get the invoice first to get its total
+    const invoice = await invoicesApi.getInvoice(invoiceId);
+    if (invoice) {
+      await invoicesApi.updateInvoice(invoiceId, { deposit: invoice.total });
+    }
   },
 
-  // Mark invoice as overdue
-  markAsOverdue: async (id: string): Promise<Invoice> => {
-    return await invoicesApi.updateInvoice(id, { payment_status: 'overdue' });
+  // Restore deleted invoice
+  restoreInvoice: async (invoiceId: string): Promise<void> => {
+    await axiosInstance.post(`/invoices/${invoiceId}/restore`);
   }
 };
 

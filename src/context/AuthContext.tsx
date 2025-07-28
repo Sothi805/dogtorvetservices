@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getUserProfile, logout } from '../api/auth';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { getUserProfile, logoutUser } from '../api/auth';
 
 interface User {
   id: string;
@@ -34,9 +35,12 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const refreshAuth = async () => {
     const token = localStorage.getItem('token');
+    
     if (!token) {
       setUser(null);
       setIsLoading(false);
@@ -48,7 +52,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(response.data.data || response.data);
     } catch (error) {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setUser(null);
+      if (location.pathname !== '/login') {
+        navigate('/login', { replace: true });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -60,8 +68,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const handleLogout = () => {
-    logout();
+    // Clear state immediately
     setUser(null);
+    
+    // Clear storage
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    
+    // Navigate immediately to prevent flickering
+    navigate('/login', { replace: true });
+    
+    // Optionally call API logout in background (non-blocking)
+    logoutUser().catch(() => {
+      // Ignore logout API errors since we've already signed out locally
+      console.log('Background logout API call failed, but user is already signed out locally');
+    });
   };
 
   useEffect(() => {

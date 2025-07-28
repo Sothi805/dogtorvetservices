@@ -33,9 +33,14 @@ const Login = () => {
     try {
       const response = await loginUser({ email, password });
       
-      if (response.data && response.data.status === 'success' && response.data.data && response.data.data.token) {
-        const token = response.data.data.token;
-        const refreshToken = response.data.data.refresh_token;
+      // DEBUG: Log the exact response structure
+      console.log('🔥 FULL RESPONSE:', response);
+      console.log('🔥 response.data:', response.data);
+      
+      // Updated to match new backend response format
+      if (response.data && response.data.access_token) {
+        const token = response.data.access_token;
+        const refreshToken = response.data.refresh_token;
         
         // Store refresh token in localStorage
         if (refreshToken) {
@@ -45,9 +50,14 @@ const Login = () => {
         await login(token); // Use AuthContext login method
         navigate("/dashboard");
       } else {
+        console.log('🚨 INVALID RESPONSE FORMAT:', {
+          hasData: !!response.data,
+          hasAccessToken: !!response.data?.access_token
+        });
         throw new Error("Invalid response format");
       }
     } catch (err: any) {
+      console.log('🚨 LOGIN ERROR:', err);
       // Handle different error response formats
       let errorMessage = "Invalid email or password";
       

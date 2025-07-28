@@ -5,6 +5,9 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     pullRequestPreviewsEnabled: true
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://dogtorvet-api.onrender.com/api/v1
     headers:
       - path: /*
         name: X-Frame-Options

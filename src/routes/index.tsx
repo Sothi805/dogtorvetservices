@@ -1,36 +1,8 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { getUserProfile } from '../api/auth';
+import { useAuth } from '../context/AuthContext';
 
 const PrivateRoute = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const validateToken = async () => {
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        // Validate token with user profile API call
-        await getUserProfile();
-        setIsAuthenticated(true);
-      } catch (error) {
-        // Token is invalid
-        localStorage.removeItem('token');
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    validateToken();
-  }, []);
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (

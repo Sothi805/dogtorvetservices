@@ -4,8 +4,8 @@ export interface InvoiceItem {
   id: string;
   invoice_id: string;
   item_type: 'service' | 'product';
-  service_id?: number;
-  product_id?: number;
+  service_id?: string;
+  product_id?: string;
   item_name: string;
   item_description?: string;
   unit_price: number | string;
@@ -20,22 +20,24 @@ export interface InvoiceItem {
     total: number;
   };
   service?: {
-    id: number;
+    id: string;
     name: string;
     price: number;
+    description?: string;
   };
   product?: {
-    id: number;
+    id: string;
     name: string;
     price: number;
+    description?: string;
   };
 }
 
 export interface InvoiceItemFilters {
   invoice_id?: string;
   item_type?: 'service' | 'product';
-  service_id?: number;
-  product_id?: number;
+  service_id?: string;
+  product_id?: string;
   search?: string;
   per_page?: number;
   page?: number;
@@ -47,13 +49,14 @@ export interface InvoiceItemFilters {
 export interface CreateInvoiceItemRequest {
   invoice_id: string;
   item_type: 'service' | 'product';
-  service_id?: number;
-  product_id?: number;
+  service_id?: string;
+  product_id?: string;
   item_name: string;
   item_description?: string;
   unit_price: number;
   quantity: number;
   discount_percent?: number;
+  net_price: number;
 }
 
 export interface UpdateInvoiceItemRequest extends Partial<Omit<CreateInvoiceItemRequest, 'invoice_id'>> {}
@@ -89,14 +92,27 @@ export const invoiceItemsApi = {
       });
     }
     
-    const response = await axiosInstance.get(`/invoice-items?${params.toString()}`);
+    const response = await axiosInstance.get(`/invoice-items/?${params.toString()}`);
     return response.data;
   },
 
   // Get invoice items by invoice ID
-  getInvoiceItemsByInvoice: async (invoiceId: string): Promise<InvoiceItem[]> => {
-    const response = await axiosInstance.get(`/invoice-items?invoice_id=${invoiceId}`);
-    return response.data.data;
+  getInvoiceItemsByInvoice: async (invoiceId: string, include?: string): Promise<InvoiceItem[]> => {
+    const params = new URLSearchParams();
+    params.append('invoice_id', invoiceId);
+    if (include) {
+      params.append('include', include);
+    }
+    
+    const response = await axiosInstance.get(`/invoice-items/?${params.toString()}`);
+    // Handle the response format - the axios interceptor should have already extracted the data
+    if (response.data && Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+      return response.data.data;
+    } else {
+      return [];
+    }
   },
 
   // Get single invoice item by ID
@@ -108,7 +124,7 @@ export const invoiceItemsApi = {
 
   // Create new invoice item
   createInvoiceItem: async (itemData: CreateInvoiceItemRequest): Promise<InvoiceItem> => {
-    const response = await axiosInstance.post('/invoice-items', itemData);
+    const response = await axiosInstance.post('/invoice-items/', itemData);
     return response.data.data;
   },
 
@@ -132,12 +148,13 @@ export const invoiceItemsApi = {
     return await invoiceItemsApi.createInvoiceItem({
       invoice_id: invoiceId,
       item_type: 'service',
-      service_id: serviceId,
+      service_id: serviceId.toString(),
       item_name: service.name,
       item_description: service.description,
       unit_price: service.price,
       quantity: quantity,
-      discount_percent: discount || 0
+      discount_percent: discount || 0,
+      net_price: service.price * quantity * (1 - (discount || 0) / 100),
     });
   },
 
@@ -150,12 +167,13 @@ export const invoiceItemsApi = {
     return await invoiceItemsApi.createInvoiceItem({
       invoice_id: invoiceId,
       item_type: 'product',
-      product_id: productId,
+      product_id: productId.toString(),
       item_name: product.name,
       item_description: product.description,
       unit_price: product.price,
       quantity: quantity,
-      discount_percent: discount || 0
+      discount_percent: discount || 0,
+      net_price: product.price * quantity * (1 - (discount || 0) / 100),
     });
   }
 };

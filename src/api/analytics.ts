@@ -64,13 +64,13 @@ export interface RevenueReport {
 // Dashboard analytics
 export const getDashboardStats = async (period: string = '30'): Promise<DashboardStats> => {
   const response = await axiosInstance.get(`/analytics/dashboard?period=${period}`);
-  return response.data;
+  return response.data; // Data is already extracted by axios interceptor
 };
 
 // Performance metrics (admin/vet only)
 export const getPerformanceMetrics = async (): Promise<PerformanceMetrics> => {
   const response = await axiosInstance.get('/analytics/performance');
-  return response.data;
+  return response.data; // Data is already extracted by axios interceptor
 };
 
 // Revenue report
@@ -82,7 +82,7 @@ export const getRevenueReport = async (
   const response = await axiosInstance.get(
     `/analytics/reports/revenue?start_date=${startDate}&end_date=${endDate}&group_by=${groupBy}`
   );
-  return response.data;
+  return response.data; // Data is already extracted by axios interceptor
 };
 
 // Invoice PDF download

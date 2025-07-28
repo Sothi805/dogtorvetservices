@@ -6,15 +6,11 @@ import {
   faCheck,
   faXmark,
   faPlus,
-  faClock,
   faUser,
   faPaw,
   faStethoscope,
-  //faShieldAlt,
   faEdit,
-  faEye,
-  faCalendarPlus,
-  faExclamationTriangle
+  faEye
 } from "@fortawesome/free-solid-svg-icons";
 import Search from "../../components/Search";
 import Layout from "../../layouts/PageLayout";
@@ -25,10 +21,11 @@ import { petsApi, Pet } from "../../api/pets";
 import { clientsApi, Client } from "../../api/clients";
 import { vaccinationsApi, Vaccination } from "../../api/vaccinations";
 import { TableSkeleton, MobileCardSkeleton, ErrorState, EmptyState } from "../../components/ui/loading";
+import AppointmentModal from "../../components/AppointmentModal";
 
 const Appointments: React.FC = () => {
   // Filter states
-  const [statusFilter, setStatusFilter] = useState<"all" | "scheduled" | "confirmed" | "in_progress" | "completed" | "cancelled" | "no_show">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "scheduled" | "completed" | "cancelled">("scheduled");
   const [serviceTypeFilter, setServiceTypeFilter] = useState<"all" | "vaccination" | "consultation" | "surgery" | "grooming" | "emergency">("all");
   const [isMenuVisible, setIsMenuVisible] = useState(true);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -87,6 +84,14 @@ const Appointments: React.FC = () => {
     setError(null);
     
     try {
+      console.log('🔍 Loading appointments with filters:', {
+        currentPage,
+        pageSize,
+        sortOrder,
+        statusFilter,
+        searchTerm
+      });
+
       const filters: AppointmentFilters = {
         page: currentPage,
         per_page: pageSize,
@@ -99,12 +104,22 @@ const Appointments: React.FC = () => {
       };
 
       const response = await appointmentsApi.getAppointments(filters);
+      console.log('📊 Appointments response received:', response);
+
+      if (response && response.data && Array.isArray(response.data)) {
       setAppointments(response.data);
-      setTotalAppointments(response.meta.total);
-      setTotalPages(response.meta.last_page);
+        setTotalAppointments(response.meta?.total || 0);
+        setTotalPages(response.meta?.last_page || 0);
+      } else {
+        console.error('❌ Invalid appointments data format:', response);
+        setError('Invalid data format received from server');
+        setAppointments([]);
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load appointments');
-      console.error('Error loading appointments:', err);
+      console.error('❌ Failed to load appointments:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to load appointments';
+      setError(errorMessage);
+      setAppointments([]);
     } finally {
       setLoading(false);
     }
@@ -112,41 +127,91 @@ const Appointments: React.FC = () => {
 
   const loadSupportingData = async () => {
     try {
-      const [servicesResponse, usersResponse, petsResponse, clientsResponse] = await Promise.all([
-        servicesApi.getServices({ per_page: 100 }),
-        usersApi.getUsers({ per_page: 100 }),
-        petsApi.getPets({ per_page: 100, include: 'client,species,breed' }),  // Backend max limit is 100
-        clientsApi.getClients()
-      ]);
-
-      setServices(servicesResponse.data);
-      setUsers(usersResponse.data);
-      setPets(petsResponse.data);
-      console.log('Loaded pets:', petsResponse.data);
-      console.log('Sample pet:', petsResponse.data[0]);
-      setClients(Array.isArray(clientsResponse) ? clientsResponse : clientsResponse.data);
-      setSupportingDataLoaded(true);
+      console.log('🔍 Loading supporting data for appointments');
       
-      // Try to load vaccinations, but don't fail if endpoint doesn't exist
+      // Load services
+      try {
+        const servicesResponse = await servicesApi.getServices({ status: 'active' });
+        console.log('📊 Services response:', servicesResponse);
+        if (Array.isArray(servicesResponse)) {
+          setServices(servicesResponse);
+        } else if ((servicesResponse as any)?.data && Array.isArray((servicesResponse as any).data)) {
+          setServices((servicesResponse as any).data);
+        }
+      } catch (err) {
+        console.error('❌ Failed to load services:', err);
+      }
+
+      // Load users
+      try {
+        const usersResponse = await usersApi.getUsers();
+        console.log('📊 Users response:', usersResponse);
+        if (Array.isArray(usersResponse)) {
+          setUsers(usersResponse);
+        } else if ((usersResponse as any)?.data && Array.isArray((usersResponse as any).data)) {
+          setUsers((usersResponse as any).data);
+        }
+      } catch (err) {
+        console.error('❌ Failed to load users:', err);
+      }
+
+      // Load pets
+      try {
+        const petsResponse = await petsApi.getPets();
+        console.log('📊 Pets response:', petsResponse);
+        if (Array.isArray(petsResponse)) {
+          setPets(petsResponse);
+        } else if ((petsResponse as any)?.data && Array.isArray((petsResponse as any).data)) {
+          setPets((petsResponse as any).data);
+        }
+      } catch (err) {
+        console.error('❌ Failed to load pets:', err);
+      }
+
+      // Load clients
+      try {
+        const clientsResponse = await clientsApi.getClients();
+        console.log('📊 Clients response:', clientsResponse);
+        if (Array.isArray(clientsResponse)) {
+          setClients(clientsResponse);
+        } else if ((clientsResponse as any)?.data && Array.isArray((clientsResponse as any).data)) {
+          setClients((clientsResponse as any).data);
+        }
+      } catch (err) {
+        console.error('❌ Failed to load clients:', err);
+      }
+
+      // Load vaccinations
       try {
         const vaccinationsResponse = await vaccinationsApi.getVaccinations();
+        console.log('📊 Vaccinations response:', vaccinationsResponse);
+        if (Array.isArray(vaccinationsResponse)) {
       setVaccinations(vaccinationsResponse);
-      } catch (vaccinationError) {
-        console.log('Vaccinations endpoint not available yet');
-        setVaccinations([]); // Set empty array as fallback
+        } else if ((vaccinationsResponse as any)?.data && Array.isArray((vaccinationsResponse as any).data)) {
+          setVaccinations((vaccinationsResponse as any).data);
+        }
+      } catch (err) {
+        console.error('❌ Failed to load vaccinations:', err);
       }
+
+      setSupportingDataLoaded(true);
     } catch (err: any) {
-      console.error('Error loading supporting data:', err);
-      setSupportingDataLoaded(true); // Set to true even on error to prevent infinite loading
+      console.error('❌ Failed to load supporting data:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to load supporting data';
+      setError(errorMessage);
     }
   };
 
   const handleCreateAppointment = () => {
+    // Set default veterinarian to admin@dogtorvet.com
+    const adminUser = users.find(user => user.email === 'admin@dogtorvet.com');
+    const defaultVetId = adminUser ? adminUser.id : '';
+    
     setAppointmentForm({
       client_id: '',
       pet_id: '',
       service_id: '',
-      veterinarian_id: '',
+      veterinarian_id: defaultVetId,
       appointment_date: '',
       appointment_time: '',
       duration_minutes: 30,
@@ -211,7 +276,6 @@ const Appointments: React.FC = () => {
       }
 
       await loadAppointments();
-      alert(`Appointment ${isEdit ? 'updated' : 'created'} successfully!`);
     } catch (error: any) {
       console.error('Failed to save appointment:', error);
       console.error('Error details:', error.response?.data);
@@ -224,22 +288,27 @@ const Appointments: React.FC = () => {
 
   const handleStatusChange = async (appointmentId: string, newStatus: Appointment['appointment_status']) => {
     try {
-      await appointmentsApi.updateAppointment(appointmentId, { appointment_status: newStatus });
+      console.log('🔄 Updating appointment status:', appointmentId, 'to:', newStatus);
+      const result = await appointmentsApi.updateAppointment(appointmentId, { appointment_status: newStatus });
+      console.log('✅ Status update successful:', result);
+      
+      // Reload appointments to get the updated data
       await loadAppointments();
+      
+      // Show success message
+      console.log(`✅ Appointment status updated to ${newStatus}`);
     } catch (error: any) {
-      console.error('Failed to update appointment status:', error);
-      alert('Failed to update appointment status');
+      console.error('❌ Failed to update appointment status:', error);
+      const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Failed to update appointment status';
+      alert(`Failed to update appointment status: ${errorMessage}`);
     }
   };
 
   const getStatusIcon = (status: Appointment['appointment_status']) => {
     switch (status) {
       case 'scheduled': return faCalendar;
-      case 'confirmed': return faCheck;
-      case 'in_progress': return faClock;
       case 'completed': return faCheck;
       case 'cancelled': return faXmark;
-      case 'no_show': return faExclamationTriangle;
       default: return faCalendar;
     }
   };
@@ -247,11 +316,8 @@ const Appointments: React.FC = () => {
   const getStatusColor = (status: Appointment['appointment_status']) => {
     switch (status) {
       case 'scheduled': return 'text-blue-600 bg-blue-100';
-      case 'confirmed': return 'text-green-600 bg-green-100';
-      case 'in_progress': return 'text-orange-600 bg-orange-100';
       case 'completed': return 'text-green-800 bg-green-200';
       case 'cancelled': return 'text-red-600 bg-red-100';
-      case 'no_show': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
@@ -295,15 +361,12 @@ const Appointments: React.FC = () => {
               <select 
                 className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as "all" | "scheduled" | "confirmed" | "in_progress" | "completed" | "cancelled" | "no_show")}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | "scheduled" | "completed" | "cancelled")}
               >
                 <option value="all">All Status</option>
                 <option value="scheduled">Scheduled</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="in_progress">In Progress</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
-                <option value="no_show">No Show</option>
               </select>
             </div>
             <div>
@@ -392,18 +455,18 @@ const Appointments: React.FC = () => {
                 Scheduled
               </button>
               <button
-                onClick={() => setStatusFilter("confirmed")}
-                className={"px-3 py-1 rounded-full text-white text-xs transition-all duration-200 " + (statusFilter === "confirmed" ? "bg-green-500" : "bg-green-300 hover:bg-green-400")}
-              >
-                <FontAwesomeIcon icon={faCheck} className="mr-1" />
-                Confirmed
-              </button>
-              <button
                 onClick={() => setStatusFilter("completed")}
                 className={"px-3 py-1 rounded-full text-white text-xs transition-all duration-200 " + (statusFilter === "completed" ? "bg-green-600" : "bg-green-300 hover:bg-green-500")}
               >
                 <FontAwesomeIcon icon={faCheck} className="mr-1" />
                 Completed
+              </button>
+              <button
+                onClick={() => setStatusFilter("cancelled")}
+                className={"px-3 py-1 rounded-full text-white text-xs transition-all duration-200 " + (statusFilter === "cancelled" ? "bg-red-500" : "bg-red-300 hover:bg-red-400")}
+              >
+                <FontAwesomeIcon icon={faXmark} className="mr-1" />
+                Cancelled
               </button>
             </div>
           </div>
@@ -502,12 +565,22 @@ const Appointments: React.FC = () => {
                         Edit
                       </button>
                       {appointment.appointment_status === 'scheduled' && (
-                        <button
-                          onClick={() => handleStatusChange(appointment.id, 'confirmed')}
-                          className="bg-green-50 text-green-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-green-100 transition-colors"
-                        >
-                          <FontAwesomeIcon icon={faCheck} />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleStatusChange(appointment.id, 'completed')}
+                            className="flex-1 bg-green-50 text-green-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-green-100 transition-colors"
+                          >
+                            <FontAwesomeIcon icon={faCheck} className="mr-1" />
+                            Complete
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                            className="flex-1 bg-red-50 text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-100 transition-colors"
+                          >
+                            <FontAwesomeIcon icon={faXmark} className="mr-1" />
+                            Cancel
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -604,29 +677,40 @@ const Appointments: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button
-                              onClick={() => handleViewAppointment(appointment)}
-                              className="text-[#007c7c] hover:text-[#005f5f] mr-3"
-                              title="View Details"
-                            >
-                              <FontAwesomeIcon icon={faEye} />
-                            </button>
-                            <button
-                              onClick={() => handleEditAppointment(appointment)}
-                              className="text-blue-600 hover:text-blue-900 mr-3"
-                              title="Edit"
-                            >
-                              <FontAwesomeIcon icon={faEdit} />
-                            </button>
-                            {appointment.appointment_status === 'scheduled' && (
+                            <div className="flex items-center space-x-3">
                               <button
-                                onClick={() => handleStatusChange(appointment.id, 'confirmed')}
-                                className="text-green-600 hover:text-green-900"
-                                title="Confirm"
+                                onClick={() => handleViewAppointment(appointment)}
+                                className="text-[#007c7c] hover:text-[#005f5f] p-1 rounded hover:bg-gray-100 transition-colors"
+                                title="View Details"
                               >
-                                <FontAwesomeIcon icon={faCheck} />
+                                <FontAwesomeIcon icon={faEye} />
                               </button>
-                            )}
+                              <button
+                                onClick={() => handleEditAppointment(appointment)}
+                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-gray-100 transition-colors"
+                                title="Edit"
+                              >
+                                <FontAwesomeIcon icon={faEdit} />
+                              </button>
+                              {appointment.appointment_status === 'scheduled' && (
+                                <>
+                                  <button
+                                    onClick={() => handleStatusChange(appointment.id, 'completed')}
+                                    className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-gray-100 transition-colors"
+                                    title="Complete"
+                                  >
+                                    <FontAwesomeIcon icon={faCheck} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleStatusChange(appointment.id, 'cancelled')}
+                                    className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-gray-100 transition-colors"
+                                    title="Cancel"
+                                  >
+                                    <FontAwesomeIcon icon={faXmark} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -638,301 +722,17 @@ const Appointments: React.FC = () => {
           </>
         )}
 
-        {/* Create/Edit Modal */}
-        {(isCreateModalOpen || isEditModalOpen) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center p-6 border-b">
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <FontAwesomeIcon icon={faCalendarPlus} className="mr-2 text-[#007c7c]" />
-                  {isEditModalOpen ? 'Edit Appointment' : 'Schedule New Appointment'}
-                </h2>
-                <button
-                  onClick={() => {
+        {/* Appointment Modal */}
+        <AppointmentModal
+          isOpen={isCreateModalOpen || isEditModalOpen || isViewModalOpen}
+          onClose={() => {
                     setIsCreateModalOpen(false);
                     setIsEditModalOpen(false);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                  disabled={isSubmitting}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <form className="p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
-                    <select
-                      value={appointmentForm.client_id}
-                      onChange={(e) => {
-                        const selectedClientId = e.target.value;
-                        console.log('Selected client ID:', selectedClientId);
-                        console.log('All pets:', pets);
-                        console.log('Pets for this client:', pets.filter(pet => pet.client_id === selectedClientId));
-                        setAppointmentForm(prev => ({ ...prev, client_id: selectedClientId, pet_id: '' }));
-                      }}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                      required
-                    >
-                      <option value="">Select a client</option>
-                      {clients.map(client => (
-                        <option key={client.id} value={client.id}>{client.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Pet *</label>
-                    <select
-                      value={appointmentForm.pet_id}
-                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, pet_id: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                      required
-                      disabled={!appointmentForm.client_id || !supportingDataLoaded}
-                    >
-                      <option value="">Select a pet</option>
-                      {!supportingDataLoaded && appointmentForm.client_id && (
-                        <option value="" disabled>Loading pets...</option>
-                      )}
-                      {clientPets.length === 0 && appointmentForm.client_id && supportingDataLoaded && (
-                        <option value="" disabled>No pets found for this client</option>
-                      )}
-                      {clientPets.map(pet => (
-                        <option key={pet.id} value={pet.id}>{pet.name} ({pet.species?.name || 'Unknown species'})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Service *</label>
-                    <select
-                      value={appointmentForm.service_id}
-                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, service_id: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                      required
-                    >
-                      <option value="">Select a service</option>
-                      {services.map(service => (
-                        <option key={service.id} value={service.id}>
-                          {service.name} - ${service.price}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Veterinarian *</label>
-                    <select
-                      value={appointmentForm.veterinarian_id}
-                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, veterinarian_id: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                      required
-                    >
-                      <option value="">Select a veterinarian</option>
-                      {users.filter(user => user.role === 'vet' || user.role === 'admin').map(user => (
-                        <option key={user.id} value={user.id}>{user.name} ({user.role})</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                    <input
-                      type="date"
-                      value={appointmentForm.appointment_date}
-                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, appointment_date: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
-                    <input
-                      type="time"
-                      value={appointmentForm.appointment_time}
-                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, appointment_time: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
-                    <input
-                      type="number"
-                      value={appointmentForm.duration_minutes}
-                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, duration_minutes: parseInt(e.target.value) || 30 }))}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                      min="15"
-                      step="15"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select
-                      value={appointmentForm.appointment_status}
-                      onChange={(e) => setAppointmentForm(prev => ({ ...prev, appointment_status: e.target.value as Appointment['appointment_status'] }))}
-                      className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                    >
-                      <option value="scheduled">Scheduled</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
-                      <option value="no_show">No Show</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea
-                    value={appointmentForm.notes}
-                    onChange={(e) => setAppointmentForm(prev => ({ ...prev, notes: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] bg-white text-gray-900"
-                    rows={3}
-                    placeholder="Add any special notes or instructions..."
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      setIsCreateModalOpen(false);
-                      setIsEditModalOpen(false);
-                    }}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-                    disabled={isSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => handleSubmitAppointment(isEditModalOpen)}
-                    disabled={isSubmitting}
-                    className="px-4 py-2 bg-[#007c7c] text-white rounded-md hover:bg-[#005f5f] transition-colors flex items-center space-x-2"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <FontAwesomeIcon icon={faCalendarPlus} />
-                        <span>{isEditModalOpen ? 'Update Appointment' : 'Schedule Appointment'}</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* View Appointment Modal */}
-        {isViewModalOpen && selectedAppointment && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-center p-6 border-b">
-                <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                  <FontAwesomeIcon icon={faEye} className="mr-2 text-[#007c7c]" />
-                  Appointment Details
-                </h2>
-                <button 
-                  onClick={() => setIsViewModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Client</h3>
-                      <p className="text-lg font-semibold text-gray-900">{selectedAppointment.client?.name}</p>
-                      <p className="text-sm text-gray-600">{selectedAppointment.client?.email}</p>
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Pet</h3>
-                      <p className="text-lg font-semibold text-gray-900">{selectedAppointment.pet?.name}</p>
-                      <p className="text-sm text-gray-600">
-                        {selectedAppointment.pet?.species?.name} - {selectedAppointment.pet?.breed?.name}
-                      </p>
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Service</h3>
-                      <p className="text-lg font-semibold text-gray-900">{selectedAppointment.service?.name}</p>
-                      <p className="text-sm text-gray-600">${selectedAppointment.service?.price}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Veterinarian</h3>
-                      <p className="text-lg font-semibold text-gray-900">{selectedAppointment.user?.name}</p>
-                      <p className="text-sm text-gray-600 capitalize">{selectedAppointment.user?.role}</p>
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Date & Time</h3>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {formatDateTime(selectedAppointment.appointment_date).date}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {formatDateTime(selectedAppointment.appointment_date).time} ({selectedAppointment.duration_minutes} minutes)
-                      </p>
-                    </div>
-
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-500">Status</h3>
-                      <span className={"inline-flex items-center px-3 py-1 rounded-full text-sm font-medium " + getStatusColor(selectedAppointment.appointment_status)}>
-                        <FontAwesomeIcon icon={getStatusIcon(selectedAppointment.appointment_status)} className="mr-2" />
-                        {selectedAppointment.appointment_status.replace('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {selectedAppointment.notes && (
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 mb-2">Notes</h3>
-                    <div className="bg-gray-50 p-4 rounded-md">
-                      <p className="text-gray-900">{selectedAppointment.notes}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button 
-                    onClick={() => setIsViewModalOpen(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-                  >
-                    Close
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setIsViewModalOpen(false);
-                      handleEditAppointment(selectedAppointment);
-                    }}
-                    className="px-4 py-2 bg-[#007c7c] text-white rounded-md hover:bg-[#005f5f] transition-colors flex items-center space-x-2"
-                  >
-                    <FontAwesomeIcon icon={faEdit} />
-                    <span>Edit Appointment</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+            setIsViewModalOpen(false);
+          }}
+          appointment={selectedAppointment}
+          onSuccess={loadAppointments}
+        />
       </div>
     </Layout>
   );

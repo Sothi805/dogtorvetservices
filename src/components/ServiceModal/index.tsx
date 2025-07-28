@@ -22,7 +22,7 @@ const ServiceModal: React.FC<ServiceModalProps> = ({
     name: '',
     description: '',
     price: 0,
-    duration_minutes: 30,
+    duration: 30,
     service_type: 'consultation',
     status: true,
   });
@@ -34,7 +34,7 @@ const ServiceModal: React.FC<ServiceModalProps> = ({
         name: service.name,
         description: service.description || '',
         price: typeof service.price === 'string' ? Number(service.price) : service.price,
-        duration_minutes: service.duration_minutes,
+        duration: service.duration,
         service_type: service.service_type,
         status: service.status,
       });
@@ -43,7 +43,7 @@ const ServiceModal: React.FC<ServiceModalProps> = ({
         name: '',
         description: '',
         price: 0,
-        duration_minutes: 30,
+        duration: 30,
         service_type: 'consultation',
         status: true,
       });
@@ -76,8 +76,8 @@ const ServiceModal: React.FC<ServiceModalProps> = ({
       newErrors.price = 'Price must be greater than 0';
     }
 
-    if (formData.duration_minutes <= 0) {
-      newErrors.duration_minutes = 'Duration must be greater than 0';
+    if (formData.duration <= 0) {
+      newErrors.duration = 'Duration must be greater than 0';
     }
 
     setErrors(newErrors);
@@ -93,179 +93,228 @@ const ServiceModal: React.FC<ServiceModalProps> = ({
 
     try {
       await onSave(formData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving service:', error);
-      setErrors({ submit: 'Failed to save service. Please try again.' });
+      
+      // Extract specific error message from API response
+      let errorMessage = 'Failed to save service. Please try again.';
+      if (error.response?.data?.detail) {
+        // Handle FastAPI validation errors
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map((err: any) => err.msg).join(', ');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors
+        const validationErrors = error.response.data.errors;
+        if (typeof validationErrors === 'object') {
+          errorMessage = Object.entries(validationErrors)
+            .map(([field, msgs]) => `${field}: ${Array.isArray(msgs) ? msgs[0] : msgs}`)
+            .join(', ');
+        } else {
+          errorMessage = JSON.stringify(validationErrors);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setErrors({ submit: errorMessage });
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-4 md:p-6 border-b">
-          <h2 className="text-lg md:text-xl font-semibold text-gray-900">
-            {service ? 'Edit Service' : 'Add New Service'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
-            disabled={isLoading}
-          >
-            <FontAwesomeIcon icon={faTimes} className="text-sm md:text-base" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-4 md:p-6 space-y-3 md:space-y-4">
-          {errors.submit && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-3 md:px-4 py-2 md:py-3 rounded text-xs md:text-sm">
-              {errors.submit}
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="name" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-              Service Name *
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              className={`w-full px-2 md:px-3 py-2 text-sm md:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] ${
-                errors.name ? 'border-red-500' : 'border-gray-300'
-              }`}
-              disabled={isLoading}
-              placeholder="Enter service name"
-            />
-            {errors.name && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.name}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="service_type" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-              Service Type *
-            </label>
-            <select
-              id="service_type"
-              name="service_type"
-              value={formData.service_type}
-              onChange={handleChange}
-              className="w-full px-2 md:px-3 py-2 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c]"
-              disabled={isLoading}
-            >
-              <option value="consultation">Consultation</option>
-              <option value="vaccination">Vaccination</option>
-              <option value="surgery">Surgery</option>
-              <option value="grooming">Grooming</option>
-              <option value="emergency">Emergency</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
-            <div>
-              <label htmlFor="price" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-                Price ($) *
-              </label>
-              <input
-                type="number"
-                id="price"
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                min="0"
-                step="0.01"
-                className={`w-full px-2 md:px-3 py-2 text-sm md:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] ${
-                  errors.price ? 'border-red-500' : 'border-gray-300'
-                }`}
-                disabled={isLoading}
-                placeholder="0.00"
-              />
-              {errors.price && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.price}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="duration_minutes" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-                Duration (minutes) *
-              </label>
-              <input
-                type="number"
-                id="duration_minutes"
-                name="duration_minutes"
-                value={formData.duration_minutes}
-                onChange={handleChange}
-                min="1"
-                className={`w-full px-2 md:px-3 py-2 text-sm md:text-base border rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c] ${
-                  errors.duration_minutes ? 'border-red-500' : 'border-gray-300'
-                }`}
-                disabled={isLoading}
-                placeholder="30"
-              />
-              {errors.duration_minutes && <p className="text-red-500 text-xs md:text-sm mt-1">{errors.duration_minutes}</p>}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="description" className="block text-xs md:text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={3}
-              className="w-full px-2 md:px-3 py-2 text-sm md:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#007c7c]"
-              disabled={isLoading}
-              placeholder="Enter service description (optional)"
-            />
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              id="status"
-              name="status"
-              checked={formData.status}
-              onChange={handleChange}
-              className="h-3 w-3 md:h-4 md:w-4 text-[#007c7c] focus:ring-[#007c7c] border-gray-300 rounded"
-              disabled={isLoading}
-            />
-            <label htmlFor="status" className="ml-2 block text-xs md:text-sm text-gray-700">
-              Active
-            </label>
-          </div>
-
-          <div className="flex justify-end space-x-2 md:space-x-3 pt-3 md:pt-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Apple-like liquid glass background with main color mixed with darker shades */}
+      <div 
+        className="absolute inset-0 bg-gradient-to-br from-[#007c7c]/30 via-[#005f5f]/20 to-[#004d4d]/25 backdrop-blur-2xl transition-opacity duration-300"
+        onClick={onClose}
+      />
+      {/* Minimal floating elements - just 2 subtle ones */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="floating-element absolute top-20 left-10 w-12 h-12 bg-white/5 rounded-full"></div>
+        <div className="floating-element-reverse absolute bottom-20 right-10 w-8 h-8 bg-white/8 rounded-full"></div>
+      </div>
+      {/* Modal container with Apple-like transparent glass effect */}
+      <div className="relative w-full max-w-md max-h-[90vh]">
+        <div className="bg-white/20 backdrop-blur-3xl rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-white/40">
+          {/* Header with subtle glass effect */}
+          <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/10">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {service ? 'Edit Service' : 'Add New Service'}
+            </h2>
             <button
-              type="button"
               onClick={onClose}
-              className="px-3 md:px-4 py-2 text-xs md:text-sm text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+              className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
               disabled={isLoading}
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-3 md:px-4 py-2 text-xs md:text-sm bg-[#007c7c] text-white rounded-md hover:bg-[#005f5f] transition-colors flex items-center space-x-1 md:space-x-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-3 w-3 md:h-4 md:w-4 border-b-2 border-white"></div>
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <FontAwesomeIcon icon={faSave} className="text-xs md:text-sm" />
-                  <span>{service ? 'Update' : 'Create'} Service</span>
-                </>
-              )}
+              <FontAwesomeIcon icon={faTimes} className="text-lg text-gray-700" />
             </button>
           </div>
-        </form>
+          {/* Form with transparent glass styling */}
+          <div className="max-h-[calc(90vh-80px)] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 pb-8">
+              {errors.submit && (
+                <div className="bg-red-500/20 backdrop-blur-sm border border-red-300/30 p-3 rounded-2xl">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-4 w-4 text-red-200" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-2">
+                      <p className="text-xs text-red-100 font-medium">
+                        {errors.submit}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-800 mb-2">
+                  Service Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm ${errors.name ? 'border-red-500' : ''}`}
+                  disabled={isLoading}
+                  placeholder="Enter service name"
+                  required
+                />
+                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              </div>
+              <div>
+                <label htmlFor="service_type" className="block text-sm font-medium text-gray-800 mb-2">
+                  Service Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="service_type"
+                  name="service_type"
+                  value={formData.service_type}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/20 border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm appearance-none"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.4)' }}
+                  disabled={isLoading}
+                  required
+                >
+                  <option value="consultation">Consultation</option>
+                  <option value="vaccination">Vaccination</option>
+                  <option value="surgery">Surgery</option>
+                  <option value="grooming">Grooming</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="price" className="block text-sm font-medium text-gray-800 mb-2">
+                    Price ($) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    min="0"
+                    step="0.01"
+                    className={`w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm ${errors.price ? 'border-red-500' : ''}`}
+                    disabled={isLoading}
+                    placeholder="0.00"
+                    required
+                  />
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                </div>
+                <div>
+                  <label htmlFor="duration" className="block text-sm font-medium text-gray-800 mb-2">
+                    Duration (minutes) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    id="duration"
+                    name="duration"
+                    value={formData.duration}
+                    onChange={handleChange}
+                    min="1"
+                    className={`w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm ${errors.duration ? 'border-red-500' : ''}`}
+                    disabled={isLoading}
+                    placeholder="30"
+                    required
+                  />
+                  {errors.duration && <p className="text-red-500 text-xs mt-1">{errors.duration}</p>}
+                </div>
+              </div>
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium text-gray-800 mb-2">
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-white/20 border border-white/40 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm"
+                  disabled={isLoading}
+                  placeholder="Enter service description (optional)"
+                />
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="status"
+                  name="status"
+                  checked={formData.status}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-[#007c7c] focus:ring-[#007c7c] border-gray-300 rounded"
+                  disabled={isLoading}
+                />
+                <label htmlFor="status" className="ml-2 block text-sm text-gray-700">
+                  Active
+                </label>
+              </div>
+              {/* Footer with subtle glass effect */}
+              <div className="flex justify-end space-x-3 pt-6 border-t border-white/20 mt-6">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-6 py-3 text-sm font-medium text-gray-700 bg-white/40 hover:bg-white/60 rounded-xl transition-all duration-200 border border-white/30 backdrop-blur-sm"
+                  disabled={isLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="px-6 py-3 text-sm font-medium text-white bg-[#007c7c] hover:bg-[#005f5f] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-all duration-200 shadow-lg flex items-center space-x-2"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </div>
+                  ) : (
+                    <>
+                      <FontAwesomeIcon icon={faSave} className="text-xs md:text-sm" />
+                      <span>{service ? 'Update Service' : 'Create Service'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   );

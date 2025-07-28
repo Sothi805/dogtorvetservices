@@ -1,0 +1,29 @@
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(10px);
+  }
+}
+
+.floating-element {
+  animation: float 6s ease-in-out infinite;
+}
+
+.floating-element-reverse {
+  animation: float-reverse 8s ease-in-out infinite;
+}
+
+.user-modal {
+  background: linear-gradient(135deg, rgba(0, 124, 124, 0.1) 0%, rgba(0, 95, 95, 0.05) 50%, rgba(0, 77, 77, 0.1) 100%);
+} 

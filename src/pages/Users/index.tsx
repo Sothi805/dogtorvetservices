@@ -6,7 +6,7 @@ import UserModal from "../../components/UserModal";
 import {
   faBarsStaggered,
   faCheck,
-  faXmark,
+  faXmark as faTimes,
   faPlus,
   faUserMd,
   faUserTie,
@@ -16,6 +16,7 @@ import {
   faCalendarAlt,
   faEnvelope,
   faPhone,
+  faKey,
 } from "@fortawesome/free-solid-svg-icons";
 import { usersApi, User, UserFilters, CreateUserRequest, UpdateUserRequest } from "../../api/users";
 import { TableSkeleton, MobileCardSkeleton, ErrorState } from "../../components/ui/loading";
@@ -39,9 +40,21 @@ const Users = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isModalLoading, setIsModalLoading] = useState(false);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  
+  // Password change modal states
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordChangeUser, setPasswordChangeUser] = useState<User | null>(null);
+  const [isPasswordModalLoading, setIsPasswordModalLoading] = useState(false);
+  const [passwordFormData, setPasswordFormData] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+  const [passwordErrors, setPasswordErrors] = useState<Record<string, string>>({});
 
   // Force default to "active" on component mount to show only active users
   useEffect(() => {
+    console.log("🔧 Users component mounted");
     setStatusFilter("active");
     console.log("🔧 Users tab opened - filter set to 'active'");
   }, []);
@@ -52,6 +65,7 @@ const Users = () => {
 
   const loadUsers = async () => {
     try {
+      console.log('🔍 Loading users...');
       setLoading(true);
       setError(null);
 
@@ -66,14 +80,16 @@ const Users = () => {
         filters.search = searchTerm.trim();
       }
 
+      console.log('🔍 Users filters:', filters);
       const response = await usersApi.getUsers(filters);
+      console.log('📊 Users response:', response);
       setUsers(response.data);
       setTotalPages(response.meta.last_page);
       setTotalUsers(response.meta.total);
     } catch (err: any) {
+      console.error('❌ Error loading users:', err);
       const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || 'Unknown error';
       setError(`Failed to load staff members: ${errorMessage} (Status: ${err.response?.status || 'Unknown'})`);
-      console.error('Error loading users:', err);
       console.error('Error details:', {
         status: err.response?.status,
         data: err.response?.data,
@@ -126,6 +142,14 @@ const Users = () => {
   };
 
   useEffect(() => {
+    console.log('🔄 Users useEffect triggered with dependencies:', {
+      searchTerm,
+      pageSize,
+      currentPage,
+      sortOrder,
+      statusFilter,
+      roleFilter
+    });
     // Load basic user data first, then enhance with appointment counts
     loadUsers();
   }, [searchTerm, pageSize, currentPage, sortOrder, statusFilter, roleFilter]);
@@ -274,6 +298,79 @@ const Users = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const handleOpenPasswordModal = (user: User) => {
+    setPasswordChangeUser(user);
+    setPasswordFormData({
+      current_password: '',
+      new_password: '',
+      confirm_password: ''
+    });
+    setPasswordErrors({});
+    setIsPasswordModalOpen(true);
+  };
+
+  const handlePasswordChange = async () => {
+    try {
+      setIsPasswordModalLoading(true);
+      setPasswordErrors({});
+
+      // Validate form
+      const errors: Record<string, string> = {};
+      if (!passwordFormData.current_password) {
+        errors.current_password = 'Current password is required';
+      }
+      if (!passwordFormData.new_password) {
+        errors.new_password = 'New password is required';
+      } else if (passwordFormData.new_password.length < 8) {
+        errors.new_password = 'Password must be at least 8 characters';
+      }
+      if (!passwordFormData.confirm_password) {
+        errors.confirm_password = 'Please confirm your new password';
+      } else if (passwordFormData.new_password !== passwordFormData.confirm_password) {
+        errors.confirm_password = 'Passwords do not match';
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setPasswordErrors(errors);
+        return;
+      }
+
+      // Call API to change password
+      await usersApi.updatePassword(passwordChangeUser!.id, passwordFormData.new_password);
+      
+      // Close modal and show success message
+      setIsPasswordModalOpen(false);
+      setPasswordChangeUser(null);
+      setPasswordFormData({
+        current_password: '',
+        new_password: '',
+        confirm_password: ''
+      });
+      setPasswordErrors({});
+      
+      // You could add a success toast here
+      console.log('Password changed successfully');
+    } catch (err: any) {
+      console.error('Error changing password:', err);
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || err.message || 'Unknown error';
+      setPasswordErrors({ submit: `Failed to change password: ${errorMessage}` });
+    } finally {
+      setIsPasswordModalLoading(false);
+    }
+  };
+
+  const handlePasswordFormChange = (field: string, value: string) => {
+    setPasswordFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error when user starts typing
+    if (passwordErrors[field]) {
+      setPasswordErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     if (statusFilter === 'active') return user.status;
     if (statusFilter === 'inactive') return !user.status;
@@ -293,7 +390,8 @@ const Users = () => {
           </div>
           <button 
             onClick={() => handleOpenModal()}
-            className="bg-[#007c7c] hover:bg-[#005f5f] text-white px-4 py-2 rounded-md flex items-center justify-center space-x-2 transition-all duration-200"
+            disabled={true}
+            className="bg-[#007c7c] hover:bg-[#005f5f] text-white px-4 py-2 rounded-md flex items-center justify-center space-x-2 transition-all duration-200 opacity-50 cursor-not-allowed"
           >
             <FontAwesomeIcon icon={faPlus} />
             <span>Add Staff Member</span>
@@ -419,7 +517,7 @@ const Users = () => {
                   }`}
                 >
                   <span>Inactive</span>{" "}
-                  <FontAwesomeIcon icon={faXmark} />
+                  <FontAwesomeIcon icon={faTimes} />
                 </button>
               </div>
 
@@ -660,20 +758,32 @@ const Users = () => {
                             {user.updated_at ? formatDate(user.updated_at) : '-'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button 
-                              onClick={() => handleOpenModal(user)}
-                              className="text-blue-600 hover:text-blue-900 mr-3"
-                              title="Edit staff member"
-                            >
-                              <FontAwesomeIcon icon={faEdit} />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteUser(user)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Delete staff member"
-                            >
-                              <FontAwesomeIcon icon={faTrash} />
-                            </button>
+                            {user.email === 'admin@dogtorvet.com' ? (
+                              <button 
+                                onClick={() => handleOpenPasswordModal(user)}
+                                className="text-blue-600 hover:text-blue-900 mr-3"
+                                title="Change password"
+                              >
+                                <FontAwesomeIcon icon={faKey} />
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={() => handleOpenModal(user)}
+                                className="text-blue-600 hover:text-blue-900 mr-3"
+                                title="Edit staff member"
+                              >
+                                <FontAwesomeIcon icon={faEdit} />
+                              </button>
+                            )}
+                            {user.email !== 'admin@dogtorvet.com' && (
+                              <button 
+                                onClick={() => handleDeleteUser(user)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Delete staff member"
+                              >
+                                <FontAwesomeIcon icon={faTrash} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))
@@ -731,6 +841,148 @@ const Users = () => {
           user={selectedUser}
           isLoading={isModalLoading}
         />
+
+        {/* Password Change Modal */}
+        {isPasswordModalOpen && passwordChangeUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Apple-like liquid glass background */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-br from-[#007c7c]/30 via-[#005f5f]/20 to-[#004d4d]/25 backdrop-blur-2xl transition-opacity duration-300"
+              onClick={() => setIsPasswordModalOpen(false)}
+            />
+            
+            {/* Minimal floating elements */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="floating-element absolute top-20 left-10 w-12 h-12 bg-white/5 rounded-full"></div>
+              <div className="floating-element-reverse absolute bottom-20 right-10 w-8 h-8 bg-white/8 rounded-full"></div>
+            </div>
+            
+            {/* Modal container with Apple-like transparent glass effect */}
+            <div className="relative w-full max-w-md">
+              {/* Transparent glass effect with drop shadow */}
+              <div className="bg-white/20 backdrop-blur-3xl rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] border border-white/40">
+                {/* Header with subtle glass effect */}
+                <div className="flex items-center justify-between p-6 border-b border-white/20 bg-white/10">
+                  <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+                    <FontAwesomeIcon icon={faKey} className="mr-3 text-[#007c7c]" />
+                    Change Password
+                  </h2>
+                  <button
+                    onClick={() => setIsPasswordModalOpen(false)}
+                    className="p-2 rounded-full hover:bg-white/20 transition-colors duration-200"
+                    disabled={isPasswordModalLoading}
+                  >
+                    <FontAwesomeIcon icon={faTimes} className="text-lg text-gray-700" />
+                  </button>
+                </div>
+
+                {/* Content with transparent glass styling */}
+                <div className="p-6 space-y-6">
+                  {passwordErrors.submit && (
+                    <div className="bg-red-50/50 backdrop-blur-sm p-4 rounded-xl border border-red-200/30">
+                      <div className="text-red-700 text-sm">{passwordErrors.submit}</div>
+                    </div>
+                  )}
+
+                  <div className="bg-white/30 backdrop-blur-sm p-6 rounded-2xl border border-white/20">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center">
+                      <FontAwesomeIcon icon={faUserMd} className="mr-3 text-[#007c7c]" />
+                      Password Change for {passwordChangeUser.name}
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="current_password" className="block text-sm font-medium text-gray-700 mb-2">
+                          Current Password *
+                        </label>
+                        <input
+                          type="password"
+                          id="current_password"
+                          value={passwordFormData.current_password}
+                          onChange={(e) => handlePasswordFormChange('current_password', e.target.value)}
+                          className={`w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm ${
+                            passwordErrors.current_password ? 'border-red-300' : ''
+                          }`}
+                          disabled={isPasswordModalLoading}
+                          placeholder="Enter current password"
+                        />
+                        {passwordErrors.current_password && <p className="text-red-500 text-sm mt-2">{passwordErrors.current_password}</p>}
+                      </div>
+
+                      <div>
+                        <label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mb-2">
+                          New Password *
+                        </label>
+                        <input
+                          type="password"
+                          id="new_password"
+                          value={passwordFormData.new_password}
+                          onChange={(e) => handlePasswordFormChange('new_password', e.target.value)}
+                          className={`w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm ${
+                            passwordErrors.new_password ? 'border-red-300' : ''
+                          }`}
+                          disabled={isPasswordModalLoading}
+                          placeholder="Enter new password"
+                        />
+                        {passwordErrors.new_password && <p className="text-red-500 text-sm mt-2">{passwordErrors.new_password}</p>}
+                      </div>
+
+                      <div>
+                        <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-2">
+                          Confirm New Password *
+                        </label>
+                        <input
+                          type="password"
+                          id="confirm_password"
+                          value={passwordFormData.confirm_password}
+                          onChange={(e) => handlePasswordFormChange('confirm_password', e.target.value)}
+                          className={`w-full px-4 py-3 bg-white/30 backdrop-blur-sm border border-white/40 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#007c7c]/50 focus:border-[#007c7c]/50 transition-all text-sm ${
+                            passwordErrors.confirm_password ? 'border-red-300' : ''
+                          }`}
+                          disabled={isPasswordModalLoading}
+                          placeholder="Confirm new password"
+                        />
+                        {passwordErrors.confirm_password && <p className="text-red-500 text-sm mt-2">{passwordErrors.confirm_password}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end p-6 border-t border-white/20 bg-white/10">
+                  <div className="flex space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsPasswordModalOpen(false)}
+                      className="px-6 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 font-medium"
+                      disabled={isPasswordModalLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePasswordChange}
+                      className="px-6 py-2 bg-[#007c7c] text-white rounded-xl hover:bg-[#005f5f] transition-colors duration-200 font-medium flex items-center space-x-2"
+                      disabled={isPasswordModalLoading}
+                    >
+                      {isPasswordModalLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Changing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faKey} className="text-sm" />
+                          <span>Change Password</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

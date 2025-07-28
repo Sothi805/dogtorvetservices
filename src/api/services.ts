@@ -1,11 +1,11 @@
 import axiosInstance from './axios';
 
 export interface Service {
-  id: number;
+  id: string;
   name: string;
   description?: string;
   price: number | string;
-  duration_minutes: number;
+  duration: number;
   service_type: 'consultation' | 'vaccination' | 'surgery' | 'grooming' | 'emergency' | 'other';
   status: boolean;
   created_at: string;
@@ -20,6 +20,7 @@ export interface ServiceFilters {
   duration_max?: number;
   search?: string;
   include_inactive?: boolean;
+  status?: 'active' | 'inactive' | 'all';
   per_page?: number;
   page?: number;
   sort_by?: string;
@@ -31,7 +32,7 @@ export interface CreateServiceRequest {
   name: string;
   description?: string;
   price: number;
-  duration_minutes: number;
+  duration: number;
   service_type: 'consultation' | 'vaccination' | 'surgery' | 'grooming' | 'emergency' | 'other';
   status?: boolean;
 }
@@ -58,7 +59,7 @@ export interface PaginatedResponse<T> {
 
 export const servicesApi = {
   // Get all services with optional filters
-  getServices: async (filters?: ServiceFilters): Promise<PaginatedResponse<Service>> => {
+  getServices: async (filters?: ServiceFilters): Promise<Service[]> => {
     const params = new URLSearchParams();
     
     if (filters) {
@@ -69,12 +70,12 @@ export const servicesApi = {
       });
     }
     
-    const response = await axiosInstance.get(`/services?${params.toString()}`);
+    const response = await axiosInstance.get(`/services/?${params.toString()}`);
     return response.data;
   },
 
   // Get single service by ID
-  getService: async (id: number, include?: string): Promise<Service> => {
+  getService: async (id: string, include?: string): Promise<Service> => {
     const params = include ? `?include=${include}` : '';
     const response = await axiosInstance.get(`/services/${id}${params}`);
     return response.data.data;
@@ -82,19 +83,24 @@ export const servicesApi = {
 
   // Create new service
   createService: async (serviceData: CreateServiceRequest): Promise<Service> => {
-    const response = await axiosInstance.post('/services', serviceData);
+    const response = await axiosInstance.post('/services/', serviceData);
     return response.data.data;
   },
 
   // Update existing service
-  updateService: async (id: number, serviceData: UpdateServiceRequest): Promise<Service> => {
+  updateService: async (id: string, serviceData: UpdateServiceRequest): Promise<Service> => {
     const response = await axiosInstance.put(`/services/${id}`, serviceData);
     return response.data.data;
   },
 
   // Delete service (soft delete)
-  deleteService: async (id: number): Promise<void> => {
+  deleteService: async (id: string): Promise<void> => {
     await axiosInstance.delete(`/services/${id}`);
+  },
+
+  // Update service status (activate/deactivate)
+  updateServiceStatus: async (id: string, status_value: boolean): Promise<void> => {
+    await axiosInstance.patch(`/services/${id}/status`, { status_value });
   },
 
   // Get services by type
@@ -104,7 +110,7 @@ export const servicesApi = {
       sort_by: 'name',
       sort_order: 'asc'
     });
-    return response.data;
+    return response;
   },
 
   // Get vaccination services

@@ -1,7 +1,7 @@
 import axiosInstance from './axios';
 
 export interface Vaccination {
-  id: number;
+  id: string;
   name: string;
   description: string;
   duration_months: number;
@@ -20,27 +20,76 @@ export interface CreateVaccinationRequest {
 export const vaccinationsApi = {
   // Get all vaccinations with filtering
   getVaccinations: async (status: 'active' | 'inactive' | 'all' = 'active'): Promise<Vaccination[]> => {
-    const response = await axiosInstance.get('/vaccinations', {
-      params: { status }
-    });
-    return response.data.data;
+    console.log('🔍 API: Getting vaccinations with status:', status);
+    try {
+      const response = await axiosInstance.get('/vaccinations/', {
+        params: { status }
+      });
+      console.log('📊 API: Vaccinations response:', response.data);
+      return response.data; // The interceptor already extracted the data
+    } catch (error: any) {
+      console.error('❌ API: Vaccinations error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        url: error.config?.url
+      });
+      throw error;
+    }
   },
 
   // Create new vaccination
   createVaccination: async (vaccinationData: CreateVaccinationRequest): Promise<Vaccination> => {
-    const response = await axiosInstance.post('/vaccinations', vaccinationData);
-    return response.data.data;
+    console.log('🔍 API: Creating vaccination:', vaccinationData);
+    try {
+      const response = await axiosInstance.post('/vaccinations/', vaccinationData);
+      console.log('📊 API: Create vaccination response:', response.data);
+      return response.data; // The interceptor already extracted the data
+    } catch (error: any) {
+      console.error('❌ API: Create vaccination error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      throw error;
+    }
   },
 
   // Update vaccination
-  updateVaccination: async (id: number, vaccinationData: Partial<CreateVaccinationRequest>): Promise<Vaccination> => {
-    const response = await axiosInstance.put(`/vaccinations/${id}`, vaccinationData);
-    return response.data.data;
+  updateVaccination: async (id: string, vaccinationData: Partial<CreateVaccinationRequest>): Promise<Vaccination> => {
+    console.log('🔍 API: Updating vaccination:', id, vaccinationData);
+    try {
+      const response = await axiosInstance.put(`/vaccinations/${id}`, vaccinationData);
+      console.log('📊 API: Update vaccination response:', response.data);
+      return response.data; // The interceptor already extracted the data
+    } catch (error: any) {
+      console.error('❌ API: Update vaccination error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      throw error;
+    }
   },
 
   // Toggle vaccination status (soft delete)
-  toggleVaccinationStatus: async (id: number): Promise<void> => {
-    await axiosInstance.put(`/vaccinations/${id}/toggle-status`);
+  toggleVaccinationStatus: async (id: string): Promise<void> => {
+    console.log('🔍 API: Toggling vaccination status:', id);
+    try {
+      const response = await axiosInstance.put(`/vaccinations/${id}/toggle-status`);
+      console.log('📊 API: Toggle vaccination response:', response.data);
+    } catch (error: any) {
+      console.error('❌ API: Toggle vaccination error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      throw error;
+    }
   }
 };
 

@@ -36,13 +36,12 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ onMobileClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [isCustomersDropdownOpen, setIsCustomersDropdownOpen] = useState(false);
   const [isInvoiceDropdownOpen, setIsInvoiceDropdownOpen] = useState(false);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    navigate('/login');
+    logout();
     onMobileClose?.();
   };
 
@@ -66,7 +65,6 @@ const Navbar: React.FC<NavbarProps> = ({ onMobileClose }) => {
 
   const invoiceSubItems = [
     { to: '/invoices', icon: faFileInvoiceDollar, label: 'All Invoices', gradient: 'from-orange-500 to-orange-600' },
-    { to: '/print-preview', icon: faPrint, label: 'Print Preview', gradient: 'from-purple-500 to-purple-600' },
     { to: '/services', icon: faCog, label: 'Services', gradient: 'from-indigo-500 to-indigo-600' },
     { to: '/products', icon: faBoxOpen, label: 'Products', gradient: 'from-pink-500 to-pink-600' },
   ];
@@ -92,8 +90,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMobileClose }) => {
 
   const isInvoiceActive = location.pathname.startsWith('/invoices') || 
                          location.pathname.startsWith('/services') || 
-                         location.pathname.startsWith('/products') ||
-                         location.pathname.startsWith('/print-preview');
+                         location.pathname.startsWith('/products');
 
   // Auto-expand customers dropdown when on customers/pets-related page
   useEffect(() => {
@@ -217,8 +214,8 @@ const Navbar: React.FC<NavbarProps> = ({ onMobileClose }) => {
               </div>
             </div>
 
-            {/* Invoice Section Dropdown Menu - HIDDEN FOR NOW */}
-            {false && (
+            {/* Invoice Section Dropdown Menu */}
+            {true && (
               <div className="relative">
                 <button
                   onClick={() => setIsInvoiceDropdownOpen(!isInvoiceDropdownOpen)}

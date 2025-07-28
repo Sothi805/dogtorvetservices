@@ -24,8 +24,8 @@ import NotFound from './pages/NotFound';
 const App = () => {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
           <Routes>
             {/* Root route - redirect based on authentication */}
             <Route path="/" element={<RootRedirect />} />
@@ -45,7 +45,6 @@ const App = () => {
                 <Route path="/services" element={<Services />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/invoices" element={<Invoices />} />
-                <Route path="/print-preview" element={<PrintPreview />} />
                 <Route path="/print-preview/:id" element={<PrintPreview />} />
                 <Route path="/users" element={<Users />} />
                 {/* <Route path="/entity-relationships" element={<EntityRelationships />} /> */}
@@ -54,8 +53,8 @@ const App = () => {
 
             <Route path="*" element={<NotFound/>} />
           </Routes>
-        </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </ErrorBoundary>
   );
 };
