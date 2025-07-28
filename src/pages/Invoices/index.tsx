@@ -16,12 +16,11 @@ import {
   faTrash,
   faDollarSign,
   faRotateLeft,
-  faWrench,
 } from "@fortawesome/free-solid-svg-icons";
-import { invoicesApi, Invoice, InvoiceFilters, CreateInvoiceRequest, UpdateInvoiceRequest } from "../../api/invoices";
+import { invoicesApi, Invoice, InvoiceFilters } from "../../api/invoices";
 import { invoiceItemsApi, InvoiceItem, CreateInvoiceItemRequest, UpdateInvoiceItemRequest } from "../../api/invoice-items";
 import { clientsApi } from "../../api/clients";
-import { petsApi } from "../../api/pets";
+
 import { servicesApi } from "../../api/services";
 import { productsApi } from "../../api/products";
 import { TableSkeleton, MobileCardSkeleton, ErrorState, EmptyState } from "../../components/ui/loading";
@@ -44,17 +43,15 @@ const Invoices = () => {
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isModalLoading, setIsModalLoading] = useState(false);
+  // const [isModalLoading, setIsModalLoading] = useState(false);
   
   // Invoice Items Modal states
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
-  const [isItemModalLoading, setIsItemModalLoading] = useState(false);
+  // const [isItemModalLoading, setIsItemModalLoading] = useState(false);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
 
   // Support data
-  const [clients, setClients] = useState<Array<{ id: string; name: string; }>>([]);
-  const [pets, setPets] = useState<Array<{ id: string; name: string; client_id: string; }>>([]);
   const [services, setServices] = useState<Array<{ id: number; name: string; price: number; description?: string; }>>([]);
   const [products, setProducts] = useState<Array<{ id: number; name: string; price: number; description?: string; }>>([]);
 
@@ -119,19 +116,12 @@ const Invoices = () => {
       const clientsResponse = await clientsApi.getClients();
       const clientsData = Array.isArray(clientsResponse) ? clientsResponse : (clientsResponse as any).data;
       console.log('Clients data:', clientsData); // Debug log
-      setClients(clientsData.map((client: any) => ({ 
-        id: client.id, 
-        name: client.name
-      })));
+      // setClients(clientsData.map((client: any) => ({ 
+      //   id: client.id, 
+      //   name: client.name
+      // })));
 
-      // Load pets for modal
-      const petsResponse = await petsApi.getPets({ per_page: 100, include: 'client' });
-      const petsData = petsResponse.data || [];
-      setPets(petsData.map((pet: any) => ({ 
-        id: pet.id, 
-        name: pet.name, 
-        client_id: pet.client_id
-      })));
+
 
       // Load services for invoice items
       const servicesResponse = await servicesApi.getServices({ status: 'active', per_page: 100 });
@@ -163,43 +153,43 @@ const Invoices = () => {
     loadSupportData();
   }, []);
 
-  const handleCreateInvoice = async (invoiceData: CreateInvoiceRequest) => {
-    try {
-      setIsModalLoading(true);
-      const newInvoice = await invoicesApi.createInvoice(invoiceData);
+  // const handleCreateInvoice = async (invoiceData: CreateInvoiceRequest) => {
+  //   try {
+  //     // setIsModalLoading(true);
+  //     const newInvoice = await invoicesApi.createInvoice(invoiceData);
       
-      // Navigate to the print preview page for the new invoice
-      navigate(`/print-preview/${newInvoice.id}`);
+  //     // Navigate to the print preview page for the new invoice
+  //     navigate(`/print-preview/${newInvoice.id}`);
       
-      // It's good practice to still close the modal and refresh the list in the background
-      await loadInvoices();
-      setIsModalOpen(false);
-      setSelectedInvoice(null);
-    } catch (err) {
-      console.error('Error creating invoice:', err);
-      // Re-throw the error so the modal can display it
-      throw err;
-    } finally {
-      setIsModalLoading(false);
-    }
-  };
+  //     // It's good practice to still close the modal and refresh the list in the background
+  //     await loadInvoices();
+  //     setIsModalOpen(false);
+  //     setSelectedInvoice(null);
+  //   } catch (err) {
+  //     console.error('Error creating invoice:', err);
+  //     // Re-throw the error so the modal can display it
+  //     throw err;
+  //   } finally {
+  //     // setIsModalLoading(false);
+  //   }
+  // };
 
-  const handleUpdateInvoice = async (invoiceData: UpdateInvoiceRequest) => {
-    if (!selectedInvoice) return;
+  // const handleUpdateInvoice = async (invoiceData: UpdateInvoiceRequest) => {
+  //   if (!selectedInvoice) return;
 
-    try {
-      setIsModalLoading(true);
-      await invoicesApi.updateInvoice(selectedInvoice.id.toString(), invoiceData);
-      await loadInvoices();
-      setIsModalOpen(false);
-      setSelectedInvoice(null);
-    } catch (err) {
-      console.error('Error updating invoice:', err);
-      throw err;
-    } finally {
-      setIsModalLoading(false);
-    }
-  };
+  //   try {
+  //     // setIsModalLoading(true);
+  //     await invoicesApi.updateInvoice(selectedInvoice.id.toString(), invoiceData);
+  //     await loadInvoices();
+  //     setIsModalOpen(false);
+  //     setSelectedInvoice(null);
+  //   } catch (err) {
+  //     console.error('Error updating invoice:', err);
+  //     throw err;
+  //   } finally {
+  //     // setIsModalLoading(false);
+  //   }
+  // };
 
   const handleDeleteInvoice = async (invoice: Invoice) => {
     if (!confirm(`Are you sure you want to delete invoice "${invoice.invoice_number}"?`)) {
@@ -272,48 +262,48 @@ const Invoices = () => {
     }
   };
 
-  const handleRecalculateAllTotals = async () => {
-    if (!confirm('This will recalculate totals for all invoices. Continue?')) {
-      return;
-    }
+  // const handleRecalculateAllTotals = async () => {
+  //   if (!confirm('This will recalculate totals for all invoices. Continue?')) {
+  //     return;
+  //   }
 
-    try {
-      const zeroTotalInvoices = filteredInvoices.filter(invoice => Number(invoice.total) === 0);
-      console.log(`🔄 Recalculating totals for ${zeroTotalInvoices.length} invoices with $0.00 total`);
+  //   try {
+  //     const zeroTotalInvoices = filteredInvoices.filter(invoice => Number(invoice.total) === 0);
+  //     console.log(`🔄 Recalculating totals for ${zeroTotalInvoices.length} invoices with $0.00 total`);
       
-      for (const invoice of zeroTotalInvoices) {
-        await handleRecalculateTotals(invoice);
-      }
+  //     for (const invoice of zeroTotalInvoices) {
+  //       await handleRecalculateTotals(invoice);
+  //     }
       
-      alert(`✅ Recalculated totals for ${zeroTotalInvoices.length} invoices`);
-    } catch (err) {
-      console.error('Error recalculating all totals:', err);
-      alert('❌ Failed to recalculate some invoice totals');
-    }
-  };
+  //     alert(`✅ Recalculated totals for ${zeroTotalInvoices.length} invoices`);
+  //   } catch (err) {
+  //     console.error('Error recalculating all totals:', err);
+  //     alert('❌ Failed to recalculate some invoice totals');
+  //   }
+  // };
 
-  const handleFixInvoiceIdFormat = async (invoice: Invoice) => {
-    try {
-      console.log(`🔧 Fixing invoice_id format for invoice: ${invoice.id} (${invoice.invoice_number})`);
+  // const handleFixInvoiceIdFormat = async (invoice: Invoice) => {
+  //   try {
+  //     console.log(`🔧 Fixing invoice_id format for invoice: ${invoice.id} (${invoice.invoice_number})`);
       
-      // Import axios instance
-      const { default: axiosInstance } = await import('../../api/axios');
+  //     // Import axios instance
+  //     const { default: axiosInstance } = await import('../../api/axios');
       
-      // Call the backend endpoint to fix invoice_id format
-      const response = await axiosInstance.post(`/invoices/${invoice.id}/fix-invoice-id-format`);
+  //     // Call the backend endpoint to fix invoice_id format
+  //     const response = await axiosInstance.post(`/invoices/${invoice.id}/fix-invoice-id-format`);
       
-      console.log('✅ Invoice ID format fixed successfully:', response.data);
+  //     console.log('✅ Invoice ID format fixed successfully:', response.data);
       
-      // Force a complete refresh of the invoices list
-      setCurrentPage(1); // Reset to first page
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Longer delay to ensure backend processing
-      await loadInvoices(); // Refresh the list
+  //     // Force a complete refresh of the invoices list
+  //     setCurrentPage(1); // Reset to first page
+  //     await new Promise(resolve => setTimeout(resolve, 1000)); // Longer delay to ensure backend processing
+  //     await loadInvoices(); // Refresh the list
       
-      console.log('🔄 Invoices list refreshed after fixing invoice_id format');
-    } catch (err) {
-      console.error('Error fixing invoice_id format:', err);
-    }
-  };
+  //     console.log('🔄 Invoices list refreshed after fixing invoice_id format');
+  //   } catch (err) {
+  //     console.error('Error fixing invoice_id format:', err);
+  //   }
+  // };
 
   const handlePrintInvoice = (invoice: Invoice) => {
     navigate(`/print-preview/${invoice.id}`);
@@ -324,20 +314,20 @@ const Invoices = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveInvoice = async (invoiceData: CreateInvoiceRequest | UpdateInvoiceRequest) => {
-    if (selectedInvoice) {
-      await handleUpdateInvoice(invoiceData as UpdateInvoiceRequest);
-    } else {
-      await handleCreateInvoice(invoiceData as CreateInvoiceRequest);
-    }
-  };
+  // const handleSaveInvoice = async (invoiceData: CreateInvoiceRequest | UpdateInvoiceRequest) => {
+  //   if (selectedInvoice) {
+  //     await handleUpdateInvoice(invoiceData as UpdateInvoiceRequest);
+  //   } else {
+  //     await handleCreateInvoice(invoiceData as CreateInvoiceRequest);
+  //   }
+  // };
 
   // Invoice Items Management
-  const handleManageItems = async (invoice: Invoice) => {
-    setSelectedInvoiceId(invoice.id.toString());
-    setIsItemModalOpen(true);
-    await loadInvoiceItems(invoice.id.toString());
-  };
+  // const handleManageItems = async (invoice: Invoice) => {
+  //   setSelectedInvoiceId(invoice.id.toString());
+  //   setIsItemModalOpen(true);
+  //   await loadInvoiceItems(invoice.id.toString());
+  // };
 
   const loadInvoiceItems = async (invoiceId: string) => {
     try {
@@ -351,7 +341,7 @@ const Invoices = () => {
 
   const handleCreateInvoiceItem = async (itemData: CreateInvoiceItemRequest | UpdateInvoiceItemRequest) => {
     try {
-      setIsItemModalLoading(true);
+      // setIsItemModalLoading(true);
       // For this implementation, we only support creating new items
       const createData = itemData as CreateInvoiceItemRequest;
       await invoiceItemsApi.createInvoiceItem(createData);
@@ -364,7 +354,7 @@ const Invoices = () => {
       console.error('Error creating invoice item:', err);
       throw err;
     } finally {
-      setIsItemModalLoading(false);
+      // setIsItemModalLoading(false);
     }
   };
 
@@ -429,20 +419,20 @@ const Invoices = () => {
     return true;
   });
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      case 'cancelled':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case 'paid':
+  //       return 'bg-green-100 text-green-800';
+  //     case 'pending':
+  //       return 'bg-yellow-100 text-yellow-800';
+  //     case 'overdue':
+  //       return 'bg-red-100 text-red-800';
+  //     case 'cancelled':
+  //       return 'bg-gray-100 text-gray-800';
+  //     default:
+  //       return 'bg-gray-100 text-gray-800';
+  //   }
+  // };
 
   return (
     <Layout title="Invoices">
@@ -1001,7 +991,7 @@ const Invoices = () => {
             }}
             onSave={handleCreateInvoiceItem}
             invoiceId={selectedInvoiceId}
-            isLoading={isItemModalLoading}
+            isLoading={false} // setIsItemModalLoading(false);
             services={services}
             products={products}
           />

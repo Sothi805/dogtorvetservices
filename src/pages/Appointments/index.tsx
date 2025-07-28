@@ -1,27 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faBarsStaggered,
+import React, { useState, useEffect } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { 
+  faPlus,
+  faEdit,
+  faEye,
   faCalendar,
   faCheck,
   faXmark,
-  faPlus,
+  faBarsStaggered,
   faUser,
   faPaw,
-  faStethoscope,
-  faEdit,
-  faEye
-} from "@fortawesome/free-solid-svg-icons";
-import Search from "../../components/Search";
-import Layout from "../../layouts/PageLayout";
-import { appointmentsApi, Appointment, AppointmentFilters, CreateAppointmentRequest } from "../../api/appointments";
-import { servicesApi, Service } from "../../api/services";
-import { usersApi, User } from "../../api/users";
-import { petsApi, Pet } from "../../api/pets";
-import { clientsApi, Client } from "../../api/clients";
-import { vaccinationsApi, Vaccination } from "../../api/vaccinations";
-import { TableSkeleton, MobileCardSkeleton, ErrorState, EmptyState } from "../../components/ui/loading";
-import AppointmentModal from "../../components/AppointmentModal";
+  faStethoscope
+} from '@fortawesome/free-solid-svg-icons';
+import Layout from '../../layouts/PageLayout';
+import Search from '../../components/Search';
+import { appointmentsApi, Appointment, AppointmentFilters } from '../../api/appointments';
+import { TableSkeleton, ErrorState, EmptyState } from '../../components/ui/loading';
+import AppointmentModal from '../../components/AppointmentModal';
 
 const Appointments: React.FC = () => {
   // Filter states
@@ -41,31 +36,9 @@ const Appointments: React.FC = () => {
 
   // Data states
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [pets, setPets] = useState<Pet[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [_vaccinations, setVaccinations] = useState<Vaccination[]>([]);
   const [loading, setLoading] = useState(true);
-  const [supportingDataLoaded, setSupportingDataLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [_totalAppointments, setTotalAppointments] = useState(0);
-  const [_totalPages, setTotalPages] = useState(0);
 
-  // Form states
-  const [appointmentForm, setAppointmentForm] = useState({
-    client_id: '',
-    pet_id: '',
-    service_id: '',
-    veterinarian_id: '',
-    appointment_date: '',
-    appointment_time: '',
-    duration_minutes: 30,
-    appointment_status: 'scheduled' as Appointment['appointment_status'],
-    notes: '',
-    vaccination_id: 0
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuVisible(!isMenuVisible);
@@ -74,10 +47,6 @@ const Appointments: React.FC = () => {
   useEffect(() => {
     loadAppointments();
   }, [currentPage, pageSize, statusFilter, serviceTypeFilter, searchTerm, sortOrder]);
-
-  useEffect(() => {
-    loadSupportingData();
-  }, []);
 
   const loadAppointments = async () => {
     setLoading(true);
@@ -107,9 +76,7 @@ const Appointments: React.FC = () => {
       console.log('📊 Appointments response received:', response);
 
       if (response && response.data && Array.isArray(response.data)) {
-      setAppointments(response.data);
-        setTotalAppointments(response.meta?.total || 0);
-        setTotalPages(response.meta?.last_page || 0);
+        setAppointments(response.data);
       } else {
         console.error('❌ Invalid appointments data format:', response);
         setError('Invalid data format received from server');
@@ -125,100 +92,9 @@ const Appointments: React.FC = () => {
     }
   };
 
-  const loadSupportingData = async () => {
-    try {
-      console.log('🔍 Loading supporting data for appointments');
-      
-      // Load services
-      try {
-        const servicesResponse = await servicesApi.getServices({ status: 'active' });
-        console.log('📊 Services response:', servicesResponse);
-        if (Array.isArray(servicesResponse)) {
-          setServices(servicesResponse);
-        } else if ((servicesResponse as any)?.data && Array.isArray((servicesResponse as any).data)) {
-          setServices((servicesResponse as any).data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load services:', err);
-      }
 
-      // Load users
-      try {
-        const usersResponse = await usersApi.getUsers();
-        console.log('📊 Users response:', usersResponse);
-        if (Array.isArray(usersResponse)) {
-          setUsers(usersResponse);
-        } else if ((usersResponse as any)?.data && Array.isArray((usersResponse as any).data)) {
-          setUsers((usersResponse as any).data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load users:', err);
-      }
-
-      // Load pets
-      try {
-        const petsResponse = await petsApi.getPets();
-        console.log('📊 Pets response:', petsResponse);
-        if (Array.isArray(petsResponse)) {
-          setPets(petsResponse);
-        } else if ((petsResponse as any)?.data && Array.isArray((petsResponse as any).data)) {
-          setPets((petsResponse as any).data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load pets:', err);
-      }
-
-      // Load clients
-      try {
-        const clientsResponse = await clientsApi.getClients();
-        console.log('📊 Clients response:', clientsResponse);
-        if (Array.isArray(clientsResponse)) {
-          setClients(clientsResponse);
-        } else if ((clientsResponse as any)?.data && Array.isArray((clientsResponse as any).data)) {
-          setClients((clientsResponse as any).data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load clients:', err);
-      }
-
-      // Load vaccinations
-      try {
-        const vaccinationsResponse = await vaccinationsApi.getVaccinations();
-        console.log('📊 Vaccinations response:', vaccinationsResponse);
-        if (Array.isArray(vaccinationsResponse)) {
-      setVaccinations(vaccinationsResponse);
-        } else if ((vaccinationsResponse as any)?.data && Array.isArray((vaccinationsResponse as any).data)) {
-          setVaccinations((vaccinationsResponse as any).data);
-        }
-      } catch (err) {
-        console.error('❌ Failed to load vaccinations:', err);
-      }
-
-      setSupportingDataLoaded(true);
-    } catch (err: any) {
-      console.error('❌ Failed to load supporting data:', err);
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to load supporting data';
-      setError(errorMessage);
-    }
-  };
 
   const handleCreateAppointment = () => {
-    // Set default veterinarian to admin@dogtorvet.com
-    const adminUser = users.find(user => user.email === 'admin@dogtorvet.com');
-    const defaultVetId = adminUser ? adminUser.id : '';
-    
-    setAppointmentForm({
-      client_id: '',
-      pet_id: '',
-      service_id: '',
-      veterinarian_id: defaultVetId,
-      appointment_date: '',
-      appointment_time: '',
-      duration_minutes: 30,
-      appointment_status: 'scheduled',
-      notes: '',
-      vaccination_id: 0
-    });
     setIsCreateModalOpen(true);
   };
 
@@ -229,62 +105,10 @@ const Appointments: React.FC = () => {
 
   const handleEditAppointment = (appointment: Appointment) => {
     setSelectedAppointmentId(appointment.id);
-    const appointmentDateTime = new Date(appointment.appointment_date);
-    setAppointmentForm({
-      client_id: appointment.client_id,
-      pet_id: appointment.pet_id,
-      service_id: appointment.service_id,
-      veterinarian_id: appointment.veterinarian_id,
-      appointment_date: appointmentDateTime.toISOString().split('T')[0],
-      appointment_time: appointmentDateTime.toTimeString().slice(0, 5),
-      duration_minutes: appointment.duration_minutes || 30,
-      appointment_status: appointment.appointment_status,
-      notes: appointment.notes || '',
-      vaccination_id: 0
-    });
     setIsEditModalOpen(true);
   };
 
-  const handleSubmitAppointment = async (isEdit: boolean = false) => {
-    if (!appointmentForm.client_id || !appointmentForm.pet_id || !appointmentForm.service_id || 
-        !appointmentForm.veterinarian_id || !appointmentForm.appointment_date || !appointmentForm.appointment_time) {
-      alert('Please fill in all required fields');
-      return;
-    }
 
-    setIsSubmitting(true);
-    try {
-      const appointmentDateTime = `${appointmentForm.appointment_date} ${appointmentForm.appointment_time}:00`;
-      
-      const appointmentData: CreateAppointmentRequest = {
-        client_id: appointmentForm.client_id,
-        pet_id: appointmentForm.pet_id,
-        service_id: appointmentForm.service_id,
-        veterinarian_id: appointmentForm.veterinarian_id,
-        appointment_date: appointmentDateTime,
-        duration_minutes: appointmentForm.duration_minutes,
-        appointment_status: appointmentForm.appointment_status,
-        notes: appointmentForm.notes
-      };
-
-      if (isEdit && selectedAppointmentId) {
-        await appointmentsApi.updateAppointment(selectedAppointmentId, appointmentData);
-        setIsEditModalOpen(false);
-      } else {
-        await appointmentsApi.createAppointment(appointmentData);
-        setIsCreateModalOpen(false);
-      }
-
-      await loadAppointments();
-    } catch (error: any) {
-      console.error('Failed to save appointment:', error);
-      console.error('Error details:', error.response?.data);
-      const errorMessage = error.response?.data?.detail || error.response?.data?.message || 'Unknown error occurred';
-      alert(`Failed to ${isEdit ? 'update' : 'create'} appointment: ${errorMessage}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleStatusChange = async (appointmentId: string, newStatus: Appointment['appointment_status']) => {
     try {
@@ -331,7 +155,6 @@ const Appointments: React.FC = () => {
   };
 
   const selectedAppointment = appointments.find(a => a.id === selectedAppointmentId);
-  const clientPets = pets.filter(pet => pet.client_id === appointmentForm.client_id);
 
   return (
     <Layout title="Appointments">
@@ -483,10 +306,7 @@ const Appointments: React.FC = () => {
 
         {loading ? (
           <>
-            <MobileCardSkeleton items={5} />
-            <div className="hidden lg:block">
-              <TableSkeleton rows={5} cols={6} />
-          </div>
+            <TableSkeleton rows={5} cols={6} />
           </>
         ) : appointments.length === 0 ? (
           <EmptyState

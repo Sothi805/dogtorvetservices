@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
-  faPrint, 
   faEdit, 
   faPlus,
   faTrash,
@@ -146,9 +145,7 @@ const PrintPreview = () => {
     console.log('🧾 Invoice items:', items);
   }, [invoice, items]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+
   
   const handleSaveItem = async (itemData: CreateInvoiceItemRequest | UpdateInvoiceItemRequest): Promise<void> => {
     if (!invoiceId) return;

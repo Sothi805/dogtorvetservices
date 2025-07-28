@@ -177,7 +177,7 @@ export const usersApi = {
   },
 
   // Get user's today appointments count
-  getUserTodayAppointments: async (userId: string): Promise<number> => {
+  getUserTodayAppointments: async (_userId: string): Promise<number> => {
     try {
       // This would need to be implemented when appointment endpoints are ready
       return 0;

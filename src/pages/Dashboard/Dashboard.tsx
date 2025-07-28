@@ -569,16 +569,14 @@ const RecentActivityFeed: React.FC = () => {
             sort_order: 'desc'
           }),
           clientsApi.getClients({ 
-            per_page: 3, 
-            sort_by: 'created_at', 
-            sort_order: 'desc' 
+            limit: 3
           }).catch(() => null)
         ]);
         
         const appointmentsData = Array.isArray(appointmentsResponse) ? 
           appointmentsResponse : appointmentsResponse.data || [];
         const clientsData = clientsResponse ? 
-          (Array.isArray(clientsResponse) ? clientsResponse : clientsResponse.data || []) : [];
+          (Array.isArray(clientsResponse) ? clientsResponse : []) : [];
         
         // Since include doesn't work properly, we need to fetch client and pet names manually
         const enrichedAppointments = await Promise.all(

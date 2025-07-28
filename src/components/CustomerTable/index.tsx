@@ -57,15 +57,15 @@ const CustomerTable: React.FC<CustomerTableProps> = ({
             
             const invoices = invoicesResponse.data || []
             
-            // Calculate total spent (paid invoices)
+            // Calculate total spent (paid invoices - where deposit equals total)
             const totalSpent = invoices
-              .filter(invoice => invoice.payment_status === 'paid')
+              .filter(invoice => (invoice.deposit || 0) >= Number(invoice.total))
               .reduce((sum, invoice) => sum + Number(invoice.total), 0)
             
-            // Calculate pending amount (pending invoices)
+            // Calculate pending amount (pending invoices - where deposit is less than total)
             const pendingAmount = invoices
-              .filter(invoice => invoice.payment_status === 'pending')
-              .reduce((sum, invoice) => sum + Number(invoice.total), 0)
+              .filter(invoice => (invoice.deposit || 0) < Number(invoice.total))
+              .reduce((sum, invoice) => sum + (Number(invoice.total) - (invoice.deposit || 0)), 0)
             
             return {
               ...customer,

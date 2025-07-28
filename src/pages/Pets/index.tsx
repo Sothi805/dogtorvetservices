@@ -16,8 +16,7 @@ import {
   faFileAlt,
   faHeartbeat,
   faCheckCircle,
-  faWeightHanging,
-  faVenusMars,
+
   faSyringe,
   faCalendarAlt,
   faInfoCircle,
@@ -25,7 +24,7 @@ import {
   faSave,
   faSearch,
 } from "@fortawesome/free-solid-svg-icons";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+
 //import { User } from 'lucide-react';
 import Search from "../../components/Search";
 import Layout from "../../layouts/PageLayout";
@@ -56,7 +55,6 @@ const Pets: React.FC = () => {
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
-  const [detailedPet, setDetailedPet] = useState<Pet | null>(null);
   const [petAppointments, setPetAppointments] = useState<Appointment[]>([]);
   const [appointmentFormData, setAppointmentFormData] = useState<CreateAppointmentRequest & { appointment_time: string }>({
     client_id: '',
@@ -87,15 +85,15 @@ const Pets: React.FC = () => {
   // States for managing allergies and vaccinations in edit mode
   const [editAllergies, setEditAllergies] = useState<any[]>([]);
   const [editVaccinations, setEditVaccinations] = useState<any[]>([]);
-  const [newAllergy, setNewAllergy] = useState({ name: '', description: '' });
-  const [newVaccination, setNewVaccination] = useState({ 
-    name: '', 
-    duration_months: 0, 
-    vaccination_date: '', 
-    description: '',
-    createAppointment: true,
-    appointmentTime: '10:00'
-  });
+  // const [newAllergy, setNewAllergy] = useState({ name: '', description: '' });
+  // const [newVaccination, setNewVaccination] = useState({ 
+  //   name: '', 
+  //   duration_months: 0, 
+  //   vaccination_date: '', 
+  //   description: '',
+  //   createAppointment: true,
+  //   appointmentTime: '10:00'
+  // });
 
   // Medical Records Modal States
   const [isMedicalModalOpen, setIsMedicalModalOpen] = useState(false);
@@ -363,9 +361,9 @@ const Pets: React.FC = () => {
     setEditAllergies(pet.allergies || []);
     setEditVaccinations(pet.vaccinations || []);
     
-    // Reset new item forms
-    setNewAllergy({ name: '', description: '' });
-    setNewVaccination({ name: '', duration_months: 0, vaccination_date: '', description: '', createAppointment: true, appointmentTime: '10:00' });
+    // Reset new item forms - commented out since functions are unused
+    // setNewAllergy({ name: '', description: '' });
+    // setNewVaccination({ name: '', duration_months: 0, vaccination_date: '', description: '', createAppointment: true, appointmentTime: '10:00' });
     
     setIsEditModalOpen(true);
   };
@@ -470,59 +468,59 @@ const Pets: React.FC = () => {
   };
 
   // Allergy management functions
-  const handleAddAllergy = () => {
-    if (!newAllergy.name.trim()) {
-      alert('Please enter an allergy name');
-      return;
-    }
-    
-    const newAllergyItem = {
-      id: Date.now().toString(), // Temporary ID for new items
-      name: newAllergy.name,
-      description: newAllergy.description,
-      isNew: true // Flag to identify new items
-    };
-    
-    setEditAllergies(prev => [...prev, newAllergyItem]);
-    setNewAllergy({ name: '', description: '' });
-  };
+  // const handleAddAllergy = () => {
+  //   if (!newAllergy.name.trim()) {
+  //     alert('Please enter an allergy name');
+  //     return;
+  //   }
+  
+  //   const newAllergyItem = {
+  //     id: Date.now().toString(), // Temporary ID for new items
+  //     name: newAllergy.name,
+  //     description: newAllergy.description,
+  //     isNew: true // Flag to identify new items
+  //   };
+  
+  //   setEditAllergies(prev => [...prev, newAllergyItem]);
+  //   setNewAllergy({ name: '', description: '' });
+  // };
 
-  const handleRemoveAllergy = (allergyId: string) => {
-    if (confirm('Are you sure you want to remove this allergy?')) {
-      setEditAllergies(prev => prev.filter(allergy => allergy.id !== allergyId));
-    }
-  };
+  // const handleRemoveAllergy = (allergyId: string) => {
+  //   if (confirm('Are you sure you want to remove this allergy?')) {
+  //     setEditAllergies(prev => prev.filter(allergy => allergy.id !== allergyId));
+  //   }
+  // };
 
   // Vaccination management functions
-  const handleAddVaccination = () => {
-    if (!newVaccination.name.trim() || !newVaccination.vaccination_date) {
-      alert('Please enter vaccination name and date');
-      return;
-    }
-    
-    const newVaccinationItem = {
-      id: Date.now().toString(), // Temporary ID for new items
-      name: newVaccination.name,
-      duration_months: newVaccination.duration_months || 12,
-      description: newVaccination.description,
-      pivot: {
-        vaccination_date: newVaccination.vaccination_date,
-        next_due_date: calculateNextDueDate(newVaccination.vaccination_date, newVaccination.duration_months || 12)
-      },
-      createAppointment: newVaccination.createAppointment,
-      appointmentTime: newVaccination.appointmentTime,
-      isNew: true // Flag to identify new items
-    };
-    
-    setEditVaccinations(prev => [...prev, newVaccinationItem]);
-    setNewVaccination({ name: '', duration_months: 0, vaccination_date: '', description: '', createAppointment: true, appointmentTime: '10:00' });
-  };
+  // const handleAddVaccination = () => {
+  //   if (!newVaccination.name.trim() || !newVaccination.vaccination_date) {
+  //     alert('Please enter vaccination name and date');
+  //     return;
+  //   }
+  
+  //   const newVaccinationItem = {
+  //     id: Date.now().toString(), // Temporary ID for new items
+  //     name: newVaccination.name,
+  //     duration_months: newVaccination.duration_months || 12,
+  //     description: newVaccination.description,
+  //     pivot: {
+  //       vaccination_date: newVaccination.vaccination_date,
+  //       next_due_date: calculateNextDueDate(newVaccination.vaccination_date, newVaccination.duration_months || 12)
+  //     },
+  //     createAppointment: newVaccination.createAppointment,
+  //     appointmentTime: newVaccination.appointmentTime,
+  //     isNew: true // Flag to identify new items
+  //   };
+  
+  //   setEditVaccinations(prev => [...prev, newVaccinationItem]);
+  //   setNewVaccination({ name: '', duration_months: 0, vaccination_date: '', description: '', createAppointment: true, appointmentTime: '10:00' });
+  // };
 
-  const handleRemoveVaccination = (vaccinationId: string) => {
-    if (confirm('Are you sure you want to remove this vaccination record?')) {
-      setEditVaccinations(prev => prev.filter(vaccination => vaccination.id !== vaccinationId));
-    }
-  };
+  // const handleRemoveVaccination = (vaccinationId: string) => {
+  //   if (confirm('Are you sure you want to remove this vaccination record?')) {
+  //     setEditVaccinations(prev => prev.filter(vaccination => vaccination.id !== vaccinationId));
+  //   }
+  // };
 
   const calculateNextDueDate = (vaccinationDate: string, durationMonths: number): string => {
     const date = new Date(vaccinationDate);
@@ -530,10 +528,10 @@ const Pets: React.FC = () => {
     return date.toISOString().split('T')[0];
   };
 
-  const setTodayDate = () => {
-    const today = new Date().toISOString().split('T')[0];
-    setNewVaccination(prev => ({ ...prev, vaccination_date: today }));
-  };
+  // const setTodayDate = () => {
+  //   const today = new Date().toISOString().split('T')[0];
+  //   setNewVaccination(prev => ({ ...prev, vaccination_date: today }));
+  // };
 
   const getSpeciesIcon = (species?: string) => {
     switch (species?.toLowerCase()) {

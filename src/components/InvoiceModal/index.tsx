@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faFileInvoiceDollar, faUser, faPaw, faCalendarAlt, faXmark, faSearch, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import { invoicesApi, Invoice, CreateInvoiceRequest, UpdateInvoiceRequest } from '../../api/invoices';
+import { faFileInvoiceDollar, faUser, faPaw, faCalendarAlt, faXmark, faSearch, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { invoicesApi, Invoice, CreateInvoiceRequest } from '../../api/invoices';
 import { clientsApi, Client } from '../../api/clients';
 import { petsApi, Pet } from '../../api/pets';
 

@@ -474,7 +474,7 @@ export const invoicesApi = {
   },
 
   // Get invoices by status (now calculated dynamically)
-  getInvoicesByStatus: async (status: 'pending' | 'paid' | 'empty'): Promise<Invoice[]> => {
+  getInvoicesByStatus: async (_status: 'pending' | 'paid' | 'empty'): Promise<Invoice[]> => {
     // Note: Status filtering is now handled on the frontend since we calculate status dynamically
     const response = await invoicesApi.getInvoices({
       sort_by: 'invoice_date',

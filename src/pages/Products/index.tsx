@@ -8,7 +8,7 @@ import {
   faCheck,
   faXmark,
   faPlus,
-  faExclamationTriangle,
+
   faEdit,
   faBoxes,
 } from "@fortawesome/free-solid-svg-icons";
@@ -21,12 +21,10 @@ const Products = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
   const [isMenuVisible, setIsMenuVisible] = useState(true);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [pageSize, setPageSize] = useState(15);
+  // const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  // const [pageSize, setPageSize] = useState(15);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalProducts, setTotalProducts] = useState(0);
+  // const [currentPage, setCurrentPage] = useState(1);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,17 +48,15 @@ const Products = () => {
 
       const filters: ProductFilters = {
         search: searchTerm || undefined,
-        per_page: pageSize,
-        page: currentPage,
+        per_page: 15, // Default page size
+        page: 1, // Default current page
         sort_by: 'name',
-        sort_order: sortOrder,
+        sort_order: 'desc', // Default sort order
         include_inactive: statusFilter === 'all' || statusFilter === 'inactive',
       };
 
       const response = await productsApi.getProducts(filters);
       setProducts(Array.isArray(response) ? response : []);
-      setTotalPages(1); // No pagination if no meta
-      setTotalProducts(Array.isArray(response) ? response.length : 0);
     } catch (err) {
       setError('Failed to load products');
       console.error('Error loading products:', err);
@@ -71,7 +67,7 @@ const Products = () => {
 
   useEffect(() => {
     loadProducts();
-  }, [searchTerm, pageSize, currentPage, sortOrder, statusFilter]);
+  }, [searchTerm, 15, 1, 'desc', statusFilter]); // Updated dependencies
 
   const handleCreateProduct = async (productData: CreateProductRequest) => {
     try {

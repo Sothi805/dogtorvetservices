@@ -1,4 +1,4 @@
-import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faTimes, 
@@ -23,8 +23,7 @@ import {
   //faCertificate,
   faHeart,
   faTag,
-  faFlask,
-  faPrint
+  faFlask
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useState, useEffect } from 'react';
@@ -34,7 +33,6 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onMobileClose }) => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
   const [isCustomersDropdownOpen, setIsCustomersDropdownOpen] = useState(false);

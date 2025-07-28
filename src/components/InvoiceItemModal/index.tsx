@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faPlus, faFileInvoiceDollar, faXmark, faShoppingCart, faDollarSign, faHashtag, faPercent } from '@fortawesome/free-solid-svg-icons';
+import { faPlus, faFileInvoiceDollar, faXmark, faShoppingCart, faDollarSign, faHashtag, faPercent } from '@fortawesome/free-solid-svg-icons';
 import { CreateInvoiceItemRequest, UpdateInvoiceItemRequest } from '../../api/invoice-items';
 
 interface InvoiceItemModalProps {

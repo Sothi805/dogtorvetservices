@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTimes, faSave, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faTimes, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Product, CreateProductRequest, UpdateProductRequest } from '../../api/products';
 
 interface ProductModalProps {
