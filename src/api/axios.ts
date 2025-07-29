@@ -22,7 +22,7 @@ const axiosInstance = axios.create({
     Accept: 'application/json',
   },
   withCredentials: true, // Enable credentials for CORS
-  timeout: 10000, // 10 second timeout
+  timeout: 60000, // 60 second timeout for cold start render times
 });
 
 // Request interceptor to add token to headers
